@@ -1,0 +1,36 @@
+# Experiment 2 — SimCLR pretraining (no labels) of the same ResNet-18, strong grayscale augmentation.
+# Uses only the 1,920 training images of the fixed split (D3). Fine-tune / linear-probe configs load
+# runs/simclr_strong/encoder.pt.
+name: simclr_strong
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:
+    crop_scale: [0.2, 1.0]   # strong crops: the two views often show different parts of the scene
+    hflip: 0.5
+    rotation: 10             # degrees, ±; no vertical flip (scenes have a fixed "up", A1)
+    brightness: 0.4
+    contrast: 0.4
+    jitter_p: 0.8
+    blur_p: 0.5
+
+model:
+  name: resnet18
+  proj_hidden: 512
+  proj_dim: 128
+
+ssl:
+  method: simclr
+  temperature: 0.2
+
+train:
+  batch_size: 256            # 510 negatives per view
+  epochs: 500
+  lr: 0.001
+  weight_decay: 0.0001
+  warmup_epochs: 10
+  knn_every: 25
+  save_every: 50
