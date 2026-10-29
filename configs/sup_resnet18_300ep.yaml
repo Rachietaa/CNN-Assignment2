@@ -1,0 +1,27 @@
+# Experiment 1b — Control: the supervised baseline trained 3x longer (300 epochs). SSL models get
+# 500 pretraining epochs + 100 fine-tuning epochs; this checks whether any SSL gain is just more training.
+# Augmentation = the best from-scratch setting of A1 (Step 2b/3b): mild crop, h-flip, ±10°, brightness/contrast.
+name: sup_resnet18_300ep
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 300
+  lr: 0.001
+  weight_decay: 0.05
+  warmup_epochs: 5
