@@ -25,4 +25,10 @@ run python train_ssl.py --config configs/simclr_mild.yaml
 run python train_classifier.py --config configs/probe_simclr_mild.yaml
 run python train_classifier.py --config configs/ft_simclr_mild.yaml
 
+# Seed check for the main comparison: is the SimCLR fine-tune gain larger than run-to-run noise?
+for seed in 1 2; do
+  run python train_classifier.py --config configs/sup_resnet18.yaml --seed $seed
+  run python train_classifier.py --config configs/ft_simclr_strong.yaml --seed $seed
+done
+
 echo "\n===== $(date '+%H:%M:%S') QUEUE DONE ====="
