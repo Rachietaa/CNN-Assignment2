@@ -1,4 +1,5 @@
-"""Self-supervised learning components: multi-view augmentation, projection head, SimCLR loss, kNN monitor."""
+"""Self-supervised learning components: view augmentation, SimCLR (projection head, NT-Xent loss),
+DINO (multi-crop, head, self-distillation loss, EMA teacher) and a kNN monitor."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -71,6 +72,88 @@ def nt_xent(z1, z2, temperature):
     sim.fill_diagonal_(float('-inf'))  # a view is not its own positive or negative
     targets = torch.cat([torch.arange(n, 2 * n), torch.arange(0, n)]).to(z.device)
     return F.cross_entropy(sim, targets)
+
+
+class MultiCropViews:
+    """DINO multi-crop: 2 global views (large crops, full resolution) + n local views (small crops, low
+    resolution). The teacher only sees global views; the student sees all of them, so it must predict
+    the teacher's output for the whole scene from a small part of it ("local-to-global")."""
+
+    def __init__(self, global_transform, local_transform, n_local):
+        self.global_transform, self.local_transform, self.n_local = global_transform, local_transform, n_local
+
+    def __call__(self, img):
+        views = [self.global_transform(img), self.global_transform(img)]
+        return views + [self.local_transform(img) for _ in range(self.n_local)]
+
+
+class DINOHead(nn.Module):
+    """MLP -> L2-normalized bottleneck -> cosine similarity to K learned prototypes.
+    Normalizing both the features and the prototype weights equals DINO's weight-normalized last layer
+    with the norm fixed to 1."""
+
+    def __init__(self, in_dim, hidden_dim, bottleneck_dim, out_dim):
+        super().__init__()
+        self.mlp = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.GELU(),
+                                 nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+                                 nn.Linear(hidden_dim, bottleneck_dim))
+        self.prototypes = nn.Parameter(torch.randn(out_dim, bottleneck_dim) * 0.02)
+
+    def forward(self, x):
+        return F.normalize(self.mlp(x), dim=1) @ F.normalize(self.prototypes, dim=1).t()
+
+
+class DINOLoss(nn.Module):
+    """Self-distillation without labels.
+
+    The teacher's output is turned into a target distribution over K prototypes: *centered* (subtract
+    a running mean, so no single prototype can win for every image) and *sharpened* (low temperature,
+    so the target is not uniform). Centering alone would collapse to uniform, sharpening alone to one
+    prototype; together they avoid collapse without negative pairs. The student is trained with
+    cross-entropy to match the teacher's distribution for every *other* view of the same image.
+    """
+
+    def __init__(self, out_dim, student_temp, teacher_temp, center_momentum):
+        super().__init__()
+        self.student_temp, self.teacher_temp, self.center_momentum = student_temp, teacher_temp, center_momentum
+        self.register_buffer('center', torch.zeros(1, out_dim))
+
+    def forward(self, student_out, teacher_out):
+        """student_out: list of [B, K] logits for every view; teacher_out: list for the 2 global views.
+        Returns the loss and the teacher target probabilities (for collapse monitoring)."""
+        targets = [F.softmax((t - self.center) / self.teacher_temp, dim=1).detach() for t in teacher_out]
+        log_preds = [F.log_softmax(s / self.student_temp, dim=1) for s in student_out]
+        total, n_terms = 0.0, 0
+        for i, target in enumerate(targets):
+            for j, log_pred in enumerate(log_preds):
+                if i == j:  # same global view: nothing to predict
+                    continue
+                total = total + (-target * log_pred).sum(dim=1).mean()
+                n_terms += 1
+        self.update_center(torch.cat(teacher_out))
+        return total / n_terms, torch.cat(targets)
+
+    @torch.no_grad()
+    def update_center(self, teacher_logits):
+        self.center.mul_(self.center_momentum).add_(teacher_logits.mean(dim=0, keepdim=True),
+                                                    alpha=1 - self.center_momentum)
+
+
+@torch.no_grad()
+def ema_update(teacher, student, momentum):
+    """Teacher weights = exponential moving average of student weights (the teacher gets no gradients)."""
+    for pt, ps in zip(teacher.parameters(), student.parameters()):
+        pt.mul_(momentum).add_(ps.detach(), alpha=1 - momentum)
+
+
+def collapse_stats(probs):
+    """Per-image entropy of the teacher targets (low = confident) and entropy of their batch mean
+    (low = every image maps to the same few prototypes = collapse). Max for both is log(K)."""
+    eps = 1e-12
+    per_image = -(probs * (probs + eps).log()).sum(dim=1).mean().item()
+    mean = probs.mean(dim=0)
+    batch = -(mean * (mean + eps).log()).sum().item()
+    return per_image, batch
 
 
 @torch.inference_mode()
