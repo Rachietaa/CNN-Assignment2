@@ -2,6 +2,8 @@
 import torch.nn as nn
 from torchvision.models import resnet18
 
+from .vit import ViT
+
 
 def build_encoder(cfg):
     """Backbone that maps a 1×H×W grayscale image to a feature vector. Returns (encoder, feat_dim)."""
@@ -13,6 +15,10 @@ def build_encoder(cfg):
         feat_dim = net.fc.in_features
         net.fc = nn.Identity()
         return net, feat_dim
+    if name == 'vit':
+        m = cfg['model']
+        net = ViT(cfg['data']['img_size'], m['patch_size'], m['dim'], m['depth'], m['heads'])
+        return net, m['dim']
     raise ValueError(f'Unknown model: {name}')
 
 
