@@ -28,6 +28,8 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1%** | **+4.6 pts over the supervised baseline** (77.5%); no class got worse, 10 of 16 improved. Biggest gains on the confused classes: OpenCountry +14, Bedroom +10, Kitchen +10. Converges faster (73.5% vs 65.0% at epoch 20) and val loss lower (0.77 vs 0.93). Single seed; seeds 1–2 queued. |
 | 3 | Joint CE + SimCLR | `configs/joint_simclr.yaml` | One stage from random init: cross-entropy + 1.0 × SimCLR loss, 300 epochs | 81.0% | +3.5 over supervised, −1.1 vs pretrain + fine-tune (within likely seed noise). Lowest val loss of the fine-tuned models (0.74). Different per-class profile: OpenCountry +21, Industrial +17, Flower +10, but Office −17, Forest −7, InsideCity −7 vs supervised. Still 100% train accuracy. |
 | 4 (1st) | DINO, first attempt | `configs/dino.yaml` | DINO-style self-distillation, paper-style head, teacher T 0.04 | **collapsed** | Loss stuck at 6.89 ≈ log(1,024) from epoch 3: teacher targets uniform for every image, nothing to learn. Stopped at epoch 13. See Exp 4 section. |
+| 5 | SimCLR, mild augmentation (ablation) | `configs/simclr_mild.yaml` (+ probe, fine-tune) | SimCLR views = A1's mild augmentation (crop 70–100%, ±20% brightness/contrast, no blur) | kNN 61.0% · probe 64.6% · fine-tune 77.7% | Easier SSL task (final loss 1.58 vs 1.92) but much worse features: −13 kNN, −11 probe, −4.4 fine-tune vs strong views. Fine-tune gain over supervised disappears (77.7 vs 77.5). |
+| 6 | Label efficiency | `configs/{sup,ft_simclr}_{10,25}pct.yaml` | 10% / 25% of labels, supervised vs SimCLR fine-tune, 200 epochs | 10%: 51.5 → **64.8** · 25%: 65.4 → **72.3** | SSL gain grows as labels shrink: +13.3 (10%), +6.9 (25%), +4.6 (100%). SimCLR with 10% labels ≈ supervised with 25%. |
 
 ---
 
@@ -257,3 +259,60 @@ grayscale scenes and a CNN they do not.
 Two changes: BatchNorm in the head (rescales the between-image differences; initial target entropy
 6.79 → 5.96) and teacher temperature 0.04 → 0.02. A guard stops the run at epoch 25 if the target entropy is
 still above 95% of the maximum. *Pending.*
+
+
+---
+
+## Experiment 5 — Which augmentations matter for SSL? (strong vs mild views)
+
+**Question.** SimCLR's augmentations define what the encoder learns to ignore. Are the strong SimCLR-style
+views necessary, or would the mild augmentation that worked best for *supervised* training in A1 do?
+
+**Setup.** Identical to Exp 2 except the views: crop 70–100% (instead of 20–100%), brightness/contrast ±20%
+always (instead of ±40% with p 0.8), no blur. Config: `configs/simclr_mild.yaml`.
+
+| SimCLR views | Final SSL loss | kNN (no labels) | Linear probe | Fine-tune |
+|---|---:|---:|---:|---:|
+| Strong (Exp 2) | 1.92 | **74.2%** | **75.2%** | **82.1%** |
+| Mild (Exp 5) | **1.58** | 61.0% | 64.6% | 77.7% |
+| *Supervised baseline (Exp 1)* | | | | *77.5%* |
+
+**Interpretation.**
+- **Strong augmentation is essential: +13 kNN, +11 linear probe, +4.4 fine-tune.** With mild views the
+  fine-tuned model is no better than the supervised baseline: the whole SSL benefit disappears.
+- **A lower SSL loss does not mean better features.** The mild run reaches a *lower* contrastive loss (1.58
+  vs 1.92) because two mildly augmented views of the same photo look almost identical and are trivially
+  matched (low-level cues such as exact pixel layout and texture suffice). The strong views — different
+  parts of the scene, different contrast, blur — can only be matched by recognizing *what the scene is*,
+  which is the information the classifier needs. This is the same lesson as the epoch-200 kNN plateau in
+  Exp 2: the SSL loss measures the pretext task, not representation quality.
+- The mild run's kNN accuracy also plateaus much earlier and lower (~60% from epoch 125 vs ~73% from epoch
+  200), so the gap is not a matter of training longer.
+- Augmentations that help supervised training (A1) are not the ones SSL needs: supervised training needs
+  views that preserve the label; contrastive SSL needs views that are as different as possible while still
+  showing the same scene.
+
+---
+
+## Experiment 6 — Label efficiency: does SSL help more when labels are scarce?
+
+**Setup.** Keep 10% or 25% of the training labels (stratified, same images for both methods), fine-tune
+for 200 epochs. The SimCLR encoder is the same one as in Exp 2 — it was pretrained on all 1,920 training
+images *without labels*, so only the fine-tuning sees fewer labels.
+
+| Labelled images | Supervised | SimCLR + fine-tune | Gain |
+|---|---:|---:|---:|
+| 10% (192, ~12 per class) | 51.5% | **64.8%** | **+13.3** |
+| 25% (479, ~30 per class) | 65.4% | **72.3%** | **+6.9** |
+| 100% (1,920) | 77.5% (79.8% at 300 ep) | **82.1%** | +4.6 (+2.3) |
+
+**Interpretation.**
+- **The fewer the labels, the more SSL helps:** +13.3 points with 10% of labels, shrinking to +2.3–4.6 with
+  all of them. With few labels the supervised network can only memorize (100% train accuracy, val loss
+  2.2); the SimCLR encoder already separates scenes, so a few labels are enough to name the clusters.
+- **SimCLR with 10% of the labels (64.8%) matches supervised training with 25% (65.4%)**, i.e. about 2.5×
+  fewer labels for the same accuracy; with 25% of labels SimCLR (72.3%) is within ~5 points of supervised
+  training on all labels.
+- SimCLR also learns faster with few labels: at epoch 20, 50.0% vs 36.2% (10%) and 61.7% vs 46.7% (25%).
+- This answers "does SSL reduce overfitting?" most directly: in the label-scarce regime where overfitting is
+  worst, SSL pretraining gives the largest improvement and much lower validation loss (1.39 vs 2.23 at 10%).
