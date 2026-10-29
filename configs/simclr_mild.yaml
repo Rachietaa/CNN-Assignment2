@@ -1,0 +1,33 @@
+# Experiment 5 — Augmentation ablation: SimCLR with A1's mild supervised augmentation instead of the
+# strong SimCLR-style views (D4). Everything else identical to configs/simclr_strong.yaml.
+name: simclr_mild
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:
+    crop_scale: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  proj_hidden: 512
+  proj_dim: 128
+
+ssl:
+  method: simclr
+  temperature: 0.2
+
+train:
+  batch_size: 256            # 510 negatives per view
+  epochs: 500
+  lr: 0.001
+  weight_decay: 0.0001
+  warmup_epochs: 10
+  knn_every: 25
+  save_every: 50
