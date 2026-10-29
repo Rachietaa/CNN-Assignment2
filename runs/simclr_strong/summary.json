@@ -1,0 +1,10 @@
+{
+  "name": "simclr_strong",
+  "epochs": 500,
+  "final_loss": 1.9174376555851527,
+  "final_knn_acc": 0.7416666746139526,
+  "best_knn_acc": 0.7541666626930237,
+  "train_seconds": 3432.2,
+  "device": "mps",
+  "torch": "2.14.1"
+}
