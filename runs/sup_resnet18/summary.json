@@ -1,0 +1,10 @@
+{
+  "name": "sup_resnet18",
+  "best_val_acc": 0.775,
+  "best_epoch": 95,
+  "final_train_acc": 0.9994791666666667,
+  "params": 11178448,
+  "train_seconds": 373.3,
+  "device": "mps",
+  "torch": "2.14.1"
+}
