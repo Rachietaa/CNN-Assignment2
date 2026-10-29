@@ -1,0 +1,7 @@
+# Exact versions used (macOS, Apple M5, Python 3.14). No pretrained-model libraries are needed.
+torch==2.14.1
+torchvision==0.29.1
+pyyaml==6.0.3
+matplotlib==3.11.2
+numpy==2.5.3
+pillow==12.3.0

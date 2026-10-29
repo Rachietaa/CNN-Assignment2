@@ -1,0 +1,14 @@
+# data and environments
+data
+data/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+# checkpoints are large; keep summaries/curves, host final .pt via GitHub Releases
+runs/**/*.pt
+
+# course handout
+*.pdf
