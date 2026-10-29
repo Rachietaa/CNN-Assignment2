@@ -26,9 +26,11 @@ def ssl_view_transform(img_size, aug):
         jitter = transforms.ColorJitter(brightness=aug.get('brightness', 0), contrast=aug.get('contrast', 0))
         t.append(transforms.RandomApply([jitter], p=aug.get('jitter_p', 1.0)))
     if aug.get('blur_p'):
-        # Kernel ≈ 10% of the image side, as in SimCLR.
+        # Kernel ≈ 10% of the image side, as in SimCLR. SimCLR's sigma range (0.1, 2.0) is in pixels at
+        # 224px; at smaller sizes it blurs more relative to the content, so it is set per config.
         kernel = int(0.1 * img_size) // 2 * 2 + 1
-        t.append(transforms.RandomApply([transforms.GaussianBlur(kernel, sigma=(0.1, 2.0))], p=aug['blur_p']))
+        sigma = tuple(aug.get('blur_sigma', (0.1, 2.0)))
+        t.append(transforms.RandomApply([transforms.GaussianBlur(kernel, sigma=sigma)], p=aug['blur_p']))
     t += [transforms.ToTensor(), transforms.Normalize(MEAN, STD)]
     return transforms.Compose(t)
 
