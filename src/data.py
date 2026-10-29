@@ -27,6 +27,21 @@ def split_indices(n, val_fraction=VAL_FRACTION, seed=SPLIT_SEED):
     return perm[:n - val_size], perm[n - val_size:]
 
 
+def label_subset(indices, targets, fraction, seed=SPLIT_SEED):
+    """Keep `fraction` of the labelled training images, the same fraction from every class (fixed seed),
+    to measure how accuracy depends on the number of labels."""
+    g = torch.Generator().manual_seed(seed)
+    by_class = {}
+    for i in indices:
+        by_class.setdefault(targets[i], []).append(i)
+    keep = []
+    for cls in sorted(by_class):
+        members = by_class[cls]
+        n = max(1, round(fraction * len(members)))
+        keep += [members[j] for j in torch.randperm(len(members), generator=g)[:n].tolist()]
+    return sorted(keep)
+
+
 def eval_transform(img_size):
     return transforms.Compose([
         transforms.Resize((img_size, img_size)),
@@ -73,6 +88,8 @@ def labelled_loaders(cfg, device, train_transform):
     test_set = image_folder(data_cfg['root'], 'test', eval_tf)
 
     train_idx, val_idx = split_indices(len(train_view))
+    if data_cfg.get('label_fraction', 1.0) < 1.0:
+        train_idx = label_subset(train_idx, train_view.targets, data_cfg['label_fraction'])
     workers = data_cfg.get('num_workers', 4)
     kw = dict(batch_size=cfg['train']['batch_size'], num_workers=workers,
               pin_memory=device.type == 'cuda', persistent_workers=workers > 0)
