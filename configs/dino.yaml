@@ -1,0 +1,47 @@
+# Experiment 4 — DINO-style self-distillation (no labels, no negatives) of the same ResNet-18.
+# Same images (D3), same global-view augmentation (D4/D4b), batch size, epochs and optimizer as
+# configs/simclr_strong.yaml; differences: the objective, the EMA teacher and multi-crop local views.
+name: dino
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:               # global views: identical to SimCLR's views
+    crop_scale: [0.2, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.4
+    contrast: 0.4
+    jitter_p: 0.8
+    blur_p: 0.5
+    blur_sigma: [0.1, 1.15]
+
+model:
+  name: resnet18
+  head_hidden: 1024
+  head_bottleneck: 256
+  head_out: 1024             # number of prototypes K (DINO uses 65,536 for ImageNet; 2,400 images need far fewer)
+
+ssl:
+  method: dino
+  student_temp: 0.1
+  teacher_temp: 0.04         # sharpening
+  center_momentum: 0.9       # centering
+  teacher_momentum: 0.99     # EMA start value, cosine -> 1.0 (only ~3,500 steps in total)
+  local_crops:
+    n: 4
+    size: 64
+    scale: [0.05, 0.2]
+    blur_sigma: [0.1, 0.6]   # same relative blur as the 128px globals
+
+train:
+  batch_size: 256
+  epochs: 500
+  lr: 0.0005
+  weight_decay: 0.04
+  warmup_epochs: 10
+  clip_grad: 3.0
+  knn_every: 25
+  save_every: 50
