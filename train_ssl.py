@@ -8,6 +8,7 @@ Usage:
 Methods (`ssl.method` in the config):
     simclr  contrastive: two views of an image are pulled together, all other images pushed apart
     dino    self-distillation: a student matches an EMA teacher's output across views, no negatives
+    mae     masked image modeling (ViT only): hide most patches, reconstruct their pixels
 
 Only the 1,920 training images of the fixed split are used; their labels are ignored. Every
 `knn_every` epochs the frozen features are scored with a kNN classifier on the validation split, to
@@ -31,6 +32,7 @@ from torch.utils.data import DataLoader, Subset
 from src.data import eval_transform, image_folder, split_indices
 from src.engine import cosine_with_warmup, get_device, set_seed
 from src.models import build_encoder
+from src.vit import MAEDecoder, mae_loss
 from src.ssl import (DINOHead, DINOLoss, MultiCropViews, ProjectionHead, TwoViews, collapse_stats,
                      ema_update, knn_accuracy, nt_xent, ssl_view_transform)
 
@@ -57,6 +59,8 @@ def build_views(data_cfg, ssl_cfg):
     global_tf = ssl_view_transform(data_cfg['img_size'], aug)
     if ssl_cfg['method'] == 'simclr':
         return TwoViews(global_tf)
+    if ssl_cfg['method'] == 'mae':
+        return global_tf  # one view per image; the masking is the "augmentation"
     local = ssl_cfg['local_crops']
     local_aug = {**aug, 'crop_scale': local['scale'], 'blur_sigma': local['blur_sigma']}
     return MultiCropViews(global_tf, ssl_view_transform(local['size'], local_aug), local['n'])
@@ -97,11 +101,15 @@ def main():
     m = cfg['model']
     if method == 'simclr':
         head = ProjectionHead(feat_dim, m['proj_hidden'], m['proj_dim'])
+    elif method == 'mae':
+        head = MAEDecoder(feat_dim, m['dec_dim'], m['dec_depth'], m['dec_heads'], encoder.grid, m['patch_size'])
     else:
-        head = DINOHead(feat_dim, m['head_hidden'], m['head_bottleneck'], m['head_out'])
+        head = DINOHead(feat_dim, m['head_hidden'], m['head_bottleneck'], m['head_out'],
+                        use_bn=m.get('head_bn', False), norm_last_layer=m.get('norm_last_layer', True))
     encoder, head = encoder.to(device), head.to(device)
     params = list(encoder.parameters()) + list(head.parameters())
-    optimizer = torch.optim.AdamW(params, lr=tr['lr'], weight_decay=tr['weight_decay'])
+    optimizer = torch.optim.AdamW(params, lr=tr['lr'], weight_decay=tr['weight_decay'],
+                                  betas=tuple(tr.get('betas', (0.9, 0.999))))
     steps = len(loader)
     total_steps = tr['epochs'] * steps
     scheduler = cosine_with_warmup(optimizer, total_steps, tr.get('warmup_epochs', 0) * steps)
@@ -115,6 +123,9 @@ def main():
                              ssl_cfg['center_momentum']).to(device)
         print(f'SSL images: {len(ssl_set)} | batch {tr["batch_size"]} | {steps} steps/epoch | '
               f'2 global + {ssl_cfg["local_crops"]["n"]} local views')
+    elif method == 'mae':
+        print(f'SSL images: {len(ssl_set)} | batch {tr["batch_size"]} | {steps} steps/epoch | '
+              f'{encoder.grid ** 2} patches, {ssl_cfg["mask_ratio"]:.0%} hidden')
     else:
         temperature = ssl_cfg['temperature']
         print(f'SSL images: {len(ssl_set)} | batch {tr["batch_size"]} | {steps} steps/epoch | '
@@ -149,6 +160,10 @@ def main():
                 # One forward pass over both views so BatchNorm sees the full 2N batch.
                 z = head(encoder(torch.cat([x1, x2])))
                 loss = nt_xent(*z.chunk(2), temperature)
+            elif method == 'mae':
+                x = batch_views.to(device)
+                latent, mask, ids_restore = encoder.forward_masked(x, ssl_cfg['mask_ratio'])
+                loss = mae_loss(head(latent, ids_restore), x, mask, m['patch_size'], ssl_cfg.get('norm_pix', True))
             else:
                 views = [v.to(device) for v in batch_views]
                 globals_ = torch.cat(views[:2])
@@ -189,6 +204,17 @@ def main():
             history['knn_epoch'].append(epoch); history['knn_acc'].append(acc)
             line += f' | kNN val acc {acc:.4f}'
         print(f'{line} | {time.time() - start:.0f}s', flush=True)
+
+        # Collapse guard: if the teacher targets are still almost uniform after `check_epoch` epochs, the
+        # student has nothing to learn; stop instead of wasting the remaining compute.
+        guard = ssl_cfg.get('collapse_guard')
+        if method == 'dino' and guard and epoch == guard['check_epoch']:
+            limit = guard['max_entropy_frac'] * math.log(m['head_out'])
+            if history['teacher_entropy'][-1] > limit:
+                (out_dir / 'history.json').write_text(json.dumps(history, indent=2))
+                plot_history(history, out_dir / 'curves.png')
+                raise SystemExit(f'COLLAPSED: H(target) {history["teacher_entropy"][-1]:.2f} > {limit:.2f} '
+                                 f'at epoch {epoch}; stopping (history saved to {out_dir}/)')
 
         if epoch % tr.get('save_every', 50) == 0 or epoch == tr['epochs']:
             state = {'encoder': encoder.state_dict(), 'head': head.state_dict(),
