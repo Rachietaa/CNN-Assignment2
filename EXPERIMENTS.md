@@ -3,6 +3,20 @@
 All numbers are validation accuracy (480 images, fixed seed-0 split, same as Assignment 1) unless marked
 "test". The test set (400 images) is evaluated only at the end, once per reported model.
 
+## Research questions → experiments
+
+| Question (assignment Section 4/5) | Experiments compared |
+|---|---|
+| Required: supervised baseline | Exp 1 (+ Exp 1b, 3× longer training, as a control) |
+| Required: SSL pretraining + fine-tuning | Exp 2 (SimCLR) and Exp 4 (DINO): linear probe and full fine-tune |
+| Required: best training recipe | Exp 7, built from the results below |
+| Does SSL improve accuracy with only 2,400 images? | Exp 1 / 1b vs Exp 2b / 4b |
+| Which augmentations are useful for SSL here? | Exp 2 (strong views) vs Exp 5 (A1's mild views) |
+| Pretrain + fine-tune vs joint SSL + classification? | Exp 2b vs Exp 3 |
+| Does SSL reduce overfitting? | Train/val gaps of all runs; Exp 6 (10% / 25% labels) |
+| Is a more complicated SSL method better? | Exp 2 (SimCLR) vs Exp 4 (DINO) |
+| Does the backbone affect the benefit of SSL? | Not investigated (see DECISIONS.md, D6) |
+
 ## Results summary
 
 | # | Experiment | Config | What changed | Val acc | Observation |
