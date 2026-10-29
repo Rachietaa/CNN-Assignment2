@@ -1,0 +1,28 @@
+# Experiment 6 — Label efficiency: supervised baseline with only 25% of the training labels
+# (same fraction per class). 200 epochs because each epoch has far fewer steps.
+# Augmentation = the best from-scratch setting of A1 (Step 2b/3b): mild crop, h-flip, ±10°, brightness/contrast.
+name: sup_25pct
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  label_fraction: 0.25
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 200
+  lr: 0.001
+  weight_decay: 0.05
+  warmup_epochs: 5

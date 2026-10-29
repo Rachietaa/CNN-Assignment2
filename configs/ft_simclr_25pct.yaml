@@ -1,0 +1,31 @@
+# Experiment 6 — Label efficiency: SimCLR encoder fine-tuned with only 25% of the training labels.
+# Identical to the supervised baseline (configs/sup_resnet18.yaml) except the starting weights,
+# so any difference is caused by the SSL pretraining.
+name: ft_simclr_25pct
+seed: 0
+
+init:
+  encoder: runs/simclr_strong/encoder.pt
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  label_fraction: 0.25
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 200
+  lr: 0.001
+  weight_decay: 0.05
+  warmup_epochs: 5
