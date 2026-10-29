@@ -54,9 +54,13 @@ def evaluate(model, loader, device, num_classes=None):
     return {'loss': loss_sum / total, 'acc': correct / total, 'confusion': confusion}
 
 
-def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label_smoothing=0.0):
+def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label_smoothing=0.0,
+                     freeze_encoder=False):
     """Train with cross-entropy and keep the weights from the epoch with the best validation accuracy.
-    The test set is never touched here."""
+    The test set is never touched here.
+
+    freeze_encoder: linear probe; the encoder also stays in eval mode so its BatchNorm statistics
+    remain exactly those learned during pretraining."""
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     model = model.to(device)
     best_state, best_val_acc, best_epoch = copy.deepcopy(model.state_dict()), 0.0, 0
@@ -65,6 +69,8 @@ def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label
 
     for epoch in range(1, epochs + 1):
         model.train()
+        if freeze_encoder:
+            model.encoder.eval()
         history['lr'].append(optimizer.param_groups[0]['lr'])
         loss_sum, correct, seen = 0.0, 0, 0
         for images, labels in loaders['train']:

@@ -57,16 +57,27 @@ def main():
           f"Test {len(loaders['test'].dataset)} | {len(classes)} classes")
 
     model = build_classifier(cfg, num_classes=len(classes))
+    tr = cfg['train']
+    init = (cfg.get('init') or {}).get('encoder')
+    if init:
+        # Start from an SSL-pretrained encoder; the classification layer is new.
+        model.encoder.load_state_dict(torch.load(init, map_location='cpu')['encoder'])
+        print(f'Loaded encoder from {init}')
+    freeze = tr.get('freeze_encoder', False)
+    if freeze:
+        # Linear probe: only the classification layer is trained on top of fixed features.
+        for p in model.encoder.parameters():
+            p.requires_grad = False
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'Trainable parameters: {n_params:,}')
 
-    tr = cfg['train']
-    optimizer = torch.optim.AdamW(model.parameters(), lr=tr['lr'], weight_decay=tr['weight_decay'])
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(trainable, lr=tr['lr'], weight_decay=tr['weight_decay'])
     steps = len(loaders['train'])
     scheduler = cosine_with_warmup(optimizer, tr['epochs'] * steps, tr.get('warmup_epochs', 0) * steps)
     model, history, best_val_acc, best_epoch, seconds = train_classifier(
         model, loaders, optimizer, scheduler, tr['epochs'], device,
-        label_smoothing=tr.get('label_smoothing', 0.0))
+        label_smoothing=tr.get('label_smoothing', 0.0), freeze_encoder=freeze)
 
     out_dir = Path('runs') / cfg['name']
     out_dir.mkdir(parents=True, exist_ok=True)
