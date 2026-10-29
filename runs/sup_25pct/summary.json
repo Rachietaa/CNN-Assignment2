@@ -1,0 +1,10 @@
+{
+  "name": "sup_25pct",
+  "best_val_acc": 0.6541666666666667,
+  "best_epoch": 133,
+  "final_train_acc": 0.9977678571428571,
+  "params": 11178448,
+  "train_seconds": 235.2,
+  "device": "mps",
+  "torch": "2.14.1"
+}
