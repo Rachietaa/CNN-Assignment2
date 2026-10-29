@@ -1,0 +1,11 @@
+{
+  "name": "simclr_mild",
+  "method": "simclr",
+  "epochs": 500,
+  "final_loss": 1.5839275802884782,
+  "final_knn_acc": 0.6104166507720947,
+  "best_knn_acc": 0.6208333373069763,
+  "train_seconds": 3244.2,
+  "device": "mps",
+  "torch": "2.14.1"
+}
