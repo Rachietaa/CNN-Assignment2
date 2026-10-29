@@ -22,9 +22,12 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | # | Experiment | Config | What changed | Val acc | Observation |
 |---|---|---|---|---:|---|
 | 1 | Supervised baseline | `configs/sup_resnet18.yaml` | ResNet-18, random init, cross-entropy only, 100 epochs | 77.5% | Severe overfitting: train acc 99.9% vs val 77.5% (22-pt gap). Val loss stops improving after ~epoch 50 (min 0.93) while train loss → 0.008. Below the much smaller A1 SceneCNN (84.7%, 1.2M params), so more capacity without more labels does not help. Weakest: Bedroom 54%, OpenCountry 57%, Industrial 62%, InsideCity 63%. |
+| 1b | Supervised, 3× longer (control) | `configs/sup_resnet18_300ep.yaml` | Exp 1 trained 300 epochs instead of 100 | 79.8% | +2.3 over Exp 1: about half of SimCLR's +4.6 gain could also be had by training longer. SimCLR fine-tune is still +2.3 above it. Val loss is the worst of all runs (min 0.98, final 1.01): longer supervised training makes the model more over-confident. |
 | 2 | SimCLR pretraining (no labels) | `configs/simclr_strong.yaml` | Same ResNet-18 pretrained with the SimCLR loss on the 1,920 train images, 500 epochs | kNN 74.2% (final encoder, no labels) | kNN accuracy of the label-free features: 58.8% (ep 25) → 68.8% (ep 100) → plateau at 73–75% from epoch ~200 while the SSL loss keeps falling (2.32 → 1.92). 57 min on the Mac. |
 | 2a | SimCLR linear probe | `configs/probe_simclr_strong.yaml` | Frozen SimCLR encoder, only a new linear layer (8,208 weights) trained | 75.2% | Within 2.3 pts of the fully trained supervised network while training 0.07% of the weights. Lower val loss than any other run (0.71). |
 | 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1%** | **+4.6 pts over the supervised baseline** (77.5%); no class got worse, 10 of 16 improved. Biggest gains on the confused classes: OpenCountry +14, Bedroom +10, Kitchen +10. Converges faster (73.5% vs 65.0% at epoch 20) and val loss lower (0.77 vs 0.93). Single seed; seeds 1–2 queued. |
+| 3 | Joint CE + SimCLR | `configs/joint_simclr.yaml` | One stage from random init: cross-entropy + 1.0 × SimCLR loss, 300 epochs | 81.0% | +3.5 over supervised, −1.1 vs pretrain + fine-tune (within likely seed noise). Lowest val loss of the fine-tuned models (0.74). Different per-class profile: OpenCountry +21, Industrial +17, Flower +10, but Office −17, Forest −7, InsideCity −7 vs supervised. Still 100% train accuracy. |
+| 4 (1st) | DINO, first attempt | `configs/dino.yaml` | DINO-style self-distillation, paper-style head, teacher T 0.04 | **collapsed** | Loss stuck at 6.89 ≈ log(1,024) from epoch 3: teacher targets uniform for every image, nothing to learn. Stopped at epoch 13. See Exp 4 section. |
 
 ---
 
@@ -153,6 +156,11 @@ Store 71 → 77 (+6), Coast 73 → 79 (+6), Flower/Highway/Mountain +3 to +4; th
 - **SSL helps with only 1,920 images: +4.6 points** from the pretraining alone (same network, same fine-tuning
   recipe, only the starting weights differ). One seed so far; seeds 1–2 of both runs are queued to check
   that the gain exceeds run-to-run noise.
+- **Training-length control (Exp 1b):** training the supervised model 3× longer gives 79.8% (+2.3). So about
+  half of the gap to the 100-epoch baseline is "more training"; against the fairer 300-epoch baseline SimCLR
+  is **+2.3** (82.1 vs 79.8). The longer supervised model also has the *worst* validation loss of all runs
+  (0.98–1.01 vs 0.77 for SimCLR): extra supervised epochs only increase confidence on memorized labels,
+  while SSL pretraining improves accuracy *and* calibration.
 - **The label-free features are already nearly as good as supervised training.** A single linear layer on
   frozen SimCLR features (75.2%) almost matches the fully trained supervised network (77.5%), and its
   validation loss is the lowest of all runs: its predictions are less over-confident when wrong.
@@ -164,3 +172,88 @@ Store 71 → 77 (+6), Coast 73 → 79 (+6), Flower/Highway/Mountain +3 to +4; th
   their ceiling.
 - **Still below the A1 SceneCNN (84.7%)**, a smaller network (1.2M parameters) trained with labels only. The
   larger ResNet-18 overfits more; SSL closes much of that gap but not all of it.
+
+
+---
+
+## Experiment 3 — Joint SimCLR + classification (one stage)
+
+**Goal.** Does SSL help more as a separate pretraining stage, or as an extra loss trained together with the
+classifier? Same encoder, same images, from random init.
+
+**Reproduce.**
+```bash
+python train_joint.py --config configs/joint_simclr.yaml
+python evaluate.py --checkpoint runs/joint_simclr/best.pt
+```
+
+**Objective.** loss = cross-entropy(classifier view) + λ · NT-Xent(two strong views), λ = 1, on one shared
+encoder in one forward pass. The classifier sees the baseline's mild augmentation; the contrastive loss sees
+SimCLR's strong views. Batch 256 (510 negatives, as in Exp 2), AdamW lr 1e-3, wd 0.05, 10-epoch warm-up,
+cosine, 300 epochs (DECISIONS.md D7). ~10.5 s/epoch, 52 min.
+
+**Results.**
+
+| Model | Best val acc | Mean val acc, last 10 epochs | Min val loss | Final train acc |
+|---|---:|---:|---:|---:|
+| Exp 1: supervised | 77.5% | 77.0% | 0.93 | 99.9% |
+| Exp 2b: SimCLR pretrain → fine-tune | **82.1%** | **81.6%** | 0.77 | 99.8% |
+| Exp 3: joint CE + SimCLR | 81.0% | 79.9% | **0.74** | 100% |
+
+Per class vs supervised (val): OpenCountry 57 → 79, Industrial 62 → 79, Flower 84 → 94, Mountain 86 → 93,
+Kitchen 73 → 80, Bedroom 54 → 64; but Office 88 → 71, Forest 93 → 86, InsideCity 63 → 57.
+
+**Interpretation.**
+- **Both ways of using SSL beat the supervised baseline** (+3.5 joint, +4.6 two-stage), so the gain comes
+  from the SSL objective, not from one particular training schedule.
+- **Two-stage is slightly better (+1.1 best, +1.7 on the last-10-epoch mean)**, but with one seed each this is
+  within plausible run-to-run noise. A likely reason it is ahead: in pretraining the encoder first learns
+  general features from the SSL signal alone; in joint training the cross-entropy term reaches ~0 within
+  ~100 epochs (100% train accuracy), after which the classifier has memorized the labels and only the SSL
+  term still shapes the features.
+- **The SSL term regularizes but does not prevent memorization:** train accuracy still reaches 100%, but the
+  validation loss is the lowest of all fine-tuned models (0.74).
+- **Joint training trades classes rather than lifting all of them:** large gains on OpenCountry/Industrial,
+  losses on Office/Forest/InsideCity. Two-stage SimCLR improved 10 classes and hurt none.
+- The joint model also learns more slowly at first (train acc 82% vs 84% at epoch 20), consistent with the
+  SSL term competing with the classification term early on.
+
+---
+
+## Experiment 4 — DINO-style self-distillation
+
+**Idea.** No negative pairs. A student network is trained to match the output of a teacher network, where
+the teacher is an exponential moving average (EMA) of the student and receives no gradients. Both output a
+distribution over K = 1,024 learned prototypes. The teacher sees two global 128px views; the student sees
+those plus four local 64px crops (5–20% of the image), so it must predict the teacher's output for the whole
+scene from small parts of it. Collapse (all images → the same output) is prevented only by **centering**
+(subtract a running mean of the teacher output, so no prototype wins for every image) and **sharpening**
+(low teacher temperature, so the target is not uniform). Implemented from scratch, trained from random init
+on the 1,920 training images only; no DINO weights are used.
+
+### First attempt: collapsed (`configs/dino.yaml`)
+
+| Epoch | SSL loss | H(teacher target) | H(batch mean) |
+|---:|---:|---:|---:|
+| 1 | 6.46 | 6.13 | 6.29 |
+| 2 | 6.81 | 6.62 | 6.76 |
+| 3 | 6.94 | 6.75 | 6.88 |
+| 5–13 | 6.89–6.91 | 6.81 | 6.90–6.91 |
+
+Maximum entropy is log(1,024) = 6.93. From epoch 3 the teacher's target for *every image* is nearly uniform
+and the loss sits at ≈ log K: the student is asked to predict "nothing", so it learns nothing. The run was
+stopped at epoch 13 (log: `runs/dino/collapsed_epochs_1-13.txt`).
+
+**Diagnosis** (randomly initialized network, 128 training images): the CNN maps all images to nearly the same
+feature vector (mean cosine similarity between different images 0.89). Centering subtracts this shared part,
+leaving teacher logits that differ by a standard deviation of only 0.02 across prototypes; even divided by
+T = 0.04 this gives near-uniform targets (entropy 6.79/6.93) from the very first step. DINO's mechanism needs
+the images to already be somewhat distinguishable; SimCLR does not, because its negatives push images apart
+directly. With ImageNet-scale data and ViTs (DINO's setting) the initial outputs differ more; with 1,920
+grayscale scenes and a CNN they do not.
+
+### Second attempt (`configs/dino_bn.yaml`, DECISIONS.md D8b)
+
+Two changes: BatchNorm in the head (rescales the between-image differences; initial target entropy
+6.79 → 5.96) and teacher temperature 0.04 → 0.02. A guard stops the run at epoch 25 if the target entropy is
+still above 95% of the maximum. *Pending.*
