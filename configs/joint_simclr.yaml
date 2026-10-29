@@ -1,0 +1,41 @@
+# Experiment 3 — Joint training from random init: cross-entropy + λ · SimCLR loss, optimized together.
+# Classifier view: the supervised baseline's augmentation. Contrastive views: SimCLR's strong views.
+name: joint_simclr
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+  ssl_augment:
+    crop_scale: [0.2, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.4
+    contrast: 0.4
+    jitter_p: 0.8
+    blur_p: 0.5
+    blur_sigma: [0.1, 1.15]
+
+model:
+  name: resnet18
+  dropout: 0.0
+  proj_hidden: 512
+  proj_dim: 128
+
+joint:
+  ssl_weight: 1.0            # λ
+  temperature: 0.2
+
+train:
+  batch_size: 256            # large batch for the contrastive negatives (510 per view)
+  epochs: 300
+  lr: 0.001
+  weight_decay: 0.05
+  warmup_epochs: 10
