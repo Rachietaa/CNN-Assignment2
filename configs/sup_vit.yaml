@@ -1,0 +1,31 @@
+# Experiment 8a — Supervised ViT baseline: ViT-Tiny from random init, cross-entropy only.
+# Same data, augmentation, epochs and optimizer as the ResNet baseline (configs/sup_resnet18.yaml);
+# only the backbone differs. 128px / 16px patches = 64 tokens.
+name: sup_vit
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: vit
+  patch_size: 16
+  dim: 192
+  depth: 12
+  heads: 3
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 100
+  lr: 0.0005
+  weight_decay: 0.05
+  warmup_epochs: 10

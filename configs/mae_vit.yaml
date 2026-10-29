@@ -1,0 +1,38 @@
+# Experiment 8b — MAE pretraining (no labels) of the ViT-Tiny from configs/sup_vit.yaml.
+# 75% of the 64 patches of each image are hidden; the encoder sees only the 16 visible patches and a light
+# decoder must reconstruct the pixels of the hidden ones. Only the 1,920 training images (D3).
+name: mae_vit
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:               # MAE uses only crop + flip; the masking provides the difficulty
+    crop_scale: [0.2, 1.0]
+    hflip: 0.5
+
+model:
+  name: vit
+  patch_size: 16
+  dim: 192
+  depth: 12
+  heads: 3
+  dec_dim: 128
+  dec_depth: 4
+  dec_heads: 4
+
+ssl:
+  method: mae
+  mask_ratio: 0.75
+  norm_pix: true             # reconstruct per-patch normalized pixels (structure, not brightness)
+
+train:
+  batch_size: 256
+  epochs: 800
+  lr: 0.00015                # MAE: 1.5e-4 × batch / 256
+  weight_decay: 0.05
+  betas: [0.9, 0.95]
+  warmup_epochs: 40
+  knn_every: 50
+  save_every: 50
