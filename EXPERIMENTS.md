@@ -15,21 +15,21 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | Pretrain + fine-tune vs joint SSL + classification? | Exp 2b vs Exp 3 |
 | Does SSL reduce overfitting? | Train/val gaps of all runs; Exp 6 (10% / 25% labels) |
 | Is a more complicated SSL method better? | Exp 2 (SimCLR) vs Exp 4 (DINO) |
-| Does the backbone affect the benefit of SSL? | Not investigated (see DECISIONS.md, D6) |
+| Does the backbone affect the benefit of SSL? | Exp 8: ViT-Tiny supervised vs MAE + fine-tune, against the ResNet-18 pair (Exp 1 vs 2b) |
 
 ## Results summary
 
 | # | Experiment | Config | What changed | Val acc | Observation |
 |---|---|---|---|---:|---|
-| 1 | Supervised baseline | `configs/sup_resnet18.yaml` | ResNet-18, random init, cross-entropy only, 100 epochs | 77.5% | Severe overfitting: train acc 99.9% vs val 77.5% (22-pt gap). Val loss stops improving after ~epoch 50 (min 0.93) while train loss → 0.008. Below the much smaller A1 SceneCNN (84.7%, 1.2M params), so more capacity without more labels does not help. Weakest: Bedroom 54%, OpenCountry 57%, Industrial 62%, InsideCity 63%. |
-| 1b | Supervised, 3× longer (control) | `configs/sup_resnet18_300ep.yaml` | Exp 1 trained 300 epochs instead of 100 | 79.8% | +2.3 over Exp 1: about half of SimCLR's +4.6 gain could also be had by training longer. SimCLR fine-tune is still +2.3 above it. Val loss is the worst of all runs (min 0.98, final 1.01): longer supervised training makes the model more over-confident. |
+| 1 | Supervised baseline | `configs/sup_resnet18.yaml` | ResNet-18, random init, cross-entropy only, 100 epochs | 77.5% (seed 0); **79.2 ± 1.8** (3 seeds) | Severe overfitting: train acc 99.9% vs val 77.5% (22-pt gap). Val loss stops improving after ~epoch 50 (min 0.93) while train loss → 0.008. Below the much smaller A1 SceneCNN (84.7%, 1.2M params), so more capacity without more labels does not help. Weakest: Bedroom 54%, OpenCountry 57%, Industrial 62%, InsideCity 63%. |
+| 1b | Supervised, 3× longer (control) | `configs/sup_resnet18_300ep.yaml` | Exp 1 trained 300 epochs instead of 100 | 79.8% (1 seed) | Equal to the 3-seed mean of the 100-epoch baseline (79.2 ± 1.8): training longer does not clearly help. Val loss is the worst of all runs (min 0.98, final 1.01): longer supervised training mainly makes the model more over-confident. |
 | 2 | SimCLR pretraining (no labels) | `configs/simclr_strong.yaml` | Same ResNet-18 pretrained with the SimCLR loss on the 1,920 train images, 500 epochs | kNN 74.2% (final encoder, no labels) | kNN accuracy of the label-free features: 58.8% (ep 25) → 68.8% (ep 100) → plateau at 73–75% from epoch ~200 while the SSL loss keeps falling (2.32 → 1.92). 57 min on the Mac. |
 | 2a | SimCLR linear probe | `configs/probe_simclr_strong.yaml` | Frozen SimCLR encoder, only a new linear layer (8,208 weights) trained | 75.2% | Within 2.3 pts of the fully trained supervised network while training 0.07% of the weights. Lower val loss than any other run (0.71). |
-| 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1%** | **+4.6 pts over the supervised baseline** (77.5%); no class got worse, 10 of 16 improved. Biggest gains on the confused classes: OpenCountry +14, Bedroom +10, Kitchen +10. Converges faster (73.5% vs 65.0% at epoch 20) and val loss lower (0.77 vs 0.93). Single seed; seeds 1–2 queued. |
-| 3 | Joint CE + SimCLR | `configs/joint_simclr.yaml` | One stage from random init: cross-entropy + 1.0 × SimCLR loss, 300 epochs | 81.0% | +3.5 over supervised, −1.1 vs pretrain + fine-tune (within likely seed noise). Lowest val loss of the fine-tuned models (0.74). Different per-class profile: OpenCountry +21, Industrial +17, Flower +10, but Office −17, Forest −7, InsideCity −7 vs supervised. Still 100% train accuracy. |
+| 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1 ± 1.3** (3 seeds) | **+2.9 over supervised (79.2 ± 1.8, 3 seeds)**; seed 0 alone suggested +4.6 because the supervised seed 0 was unlucky. Every SimCLR seed ≥ 80.8; supervised seeds 77.5–81.0. Faster learning (70.3 vs 66.0 at epoch 20). Seed-0 run: no class worse, biggest gains OpenCountry +14, Bedroom +10, Kitchen +10. |
+| 3 | Joint CE + SimCLR | `configs/joint_simclr.yaml` | One stage from random init: cross-entropy + 1.0 × SimCLR loss, 300 epochs | 81.0% | +1.8 over the supervised 3-seed mean (79.2), −1.1 vs pretrain + fine-tune (82.1); both within seed noise (±1.3–1.8). Lowest val loss of the fine-tuned models (0.74). Different per-class profile: OpenCountry +21, Industrial +17, Flower +10, but Office −17, Forest −7, InsideCity −7 vs supervised. Still 100% train accuracy. |
 | 4 (1st) | DINO, first attempt | `configs/dino.yaml` | DINO-style self-distillation, paper-style head, teacher T 0.04 | **collapsed** | Loss stuck at 6.89 ≈ log(1,024) from epoch 3: teacher targets uniform for every image, nothing to learn. Stopped at epoch 13. See Exp 4 section. |
 | 5 | SimCLR, mild augmentation (ablation) | `configs/simclr_mild.yaml` (+ probe, fine-tune) | SimCLR views = A1's mild augmentation (crop 70–100%, ±20% brightness/contrast, no blur) | kNN 61.0% · probe 64.6% · fine-tune 77.7% | Easier SSL task (final loss 1.58 vs 1.92) but much worse features: −13 kNN, −11 probe, −4.4 fine-tune vs strong views. Fine-tune gain over supervised disappears (77.7 vs 77.5). |
-| 6 | Label efficiency | `configs/{sup,ft_simclr}_{10,25}pct.yaml` | 10% / 25% of labels, supervised vs SimCLR fine-tune, 200 epochs | 10%: 51.5 → **64.8** · 25%: 65.4 → **72.3** | SSL gain grows as labels shrink: +13.3 (10%), +6.9 (25%), +4.6 (100%). SimCLR with 10% labels ≈ supervised with 25%. |
+| 6 | Label efficiency | `configs/{sup,ft_simclr}_{10,25}pct.yaml` | 10% / 25% of labels, supervised vs SimCLR fine-tune, 200 epochs | 10%: 51.5 → **64.8** · 25%: 65.4 → **72.3** | SSL gain grows as labels shrink: +13.3 (10%), +6.9 (25%), +2.9 (100%, 3-seed means). SimCLR with 10% labels ≈ supervised with 25%. |
 
 ---
 
@@ -155,19 +155,25 @@ Store 71 → 77 (+6), Coast 73 → 79 (+6), Flower/Highway/Mountain +3 to +4; th
 **No class got worse.**
 
 **Interpretation.**
-- **SSL helps with only 1,920 images: +4.6 points** from the pretraining alone (same network, same fine-tuning
-  recipe, only the starting weights differ). One seed so far; seeds 1–2 of both runs are queued to check
-  that the gain exceeds run-to-run noise.
-- **Training-length control (Exp 1b):** training the supervised model 3× longer gives 79.8% (+2.3). So about
-  half of the gap to the 100-epoch baseline is "more training"; against the fairer 300-epoch baseline SimCLR
-  is **+2.3** (82.1 vs 79.8). The longer supervised model also has the *worst* validation loss of all runs
-  (0.98–1.01 vs 0.77 for SimCLR): extra supervised epochs only increase confidence on memorized labels,
-  while SSL pretraining improves accuracy *and* calibration.
+- **Seed check (3 seeds each, fine-tuning seed varied, same SimCLR encoder):**
+
+  | | Seed 0 | Seed 1 | Seed 2 | Mean ± std | Last-10-epoch mean | Val acc at epoch 20 |
+  |---|---:|---:|---:|---:|---:|---:|
+  | Supervised (Exp 1) | 77.5 | 81.0 | 79.2 | 79.2 ± 1.8 | 78.4 ± 1.6 | 66.0 ± 0.9 |
+  | SimCLR + fine-tune (Exp 2b) | 82.1 | 80.8 | 83.3 | **82.1 ± 1.3** | **81.3 ± 1.2** | **70.3 ± 2.8** |
+
+- **With all labels, SSL gives a modest but consistent gain: +2.9 points** (82.1 vs 79.2), about 1.5–2
+  standard deviations; every SimCLR seed is at least 80.8%, while supervised seeds range 77.5–81.0. The
+  single-seed comparison (+4.6) overstated it, because supervised seed 0 happened to be the worst of the
+  three. Only the fine-tuning seed is varied here; the SimCLR pretraining itself was run once.
+- **Training longer is not the explanation** (Exp 1b): 300 supervised epochs give 79.8%, the same as the
+  100-epoch mean (79.2 ± 1.8), with worse validation loss.
 - **The label-free features are already nearly as good as supervised training.** A single linear layer on
-  frozen SimCLR features (75.2%) almost matches the fully trained supervised network (77.5%), and its
+  frozen SimCLR features (75.2%) comes within 4 points of the fully trained supervised network (79.2 ± 1.8)
+  while training 0.07% of the weights, and its
   validation loss is the lowest of all runs: its predictions are less over-confident when wrong.
 - **SSL reduces, but does not remove, overfitting.** The fine-tuned model still reaches ~100% train accuracy,
-  but generalizes better (val loss 0.77 vs 0.93, +4.6 pts). Pretraining gives a better starting point that
+  but generalizes better (min val loss 0.81 vs 0.87, 3-seed means; +2.9 pts). Pretraining gives a better starting point that
   fine-tuning then specializes from; the labels still get memorized.
 - **The gains are on the hardest, most confused classes** (OpenCountry, Bedroom, Kitchen, Industrial), the
   scene types defined by global layout rather than a single object; the easy classes were already near
@@ -198,7 +204,7 @@ cosine, 300 epochs (DECISIONS.md D7). ~10.5 s/epoch, 52 min.
 
 | Model | Best val acc | Mean val acc, last 10 epochs | Min val loss | Final train acc |
 |---|---:|---:|---:|---:|
-| Exp 1: supervised | 77.5% | 77.0% | 0.93 | 99.9% |
+| Exp 1: supervised (seed 0; 3-seed mean 79.2 ± 1.8) | 77.5% | 77.0% | 0.93 | 99.9% |
 | Exp 2b: SimCLR pretrain → fine-tune | **82.1%** | **81.6%** | 0.77 | 99.8% |
 | Exp 3: joint CE + SimCLR | 81.0% | 79.9% | **0.74** | 100% |
 
@@ -206,8 +212,8 @@ Per class vs supervised (val): OpenCountry 57 → 79, Industrial 62 → 79, Flow
 Kitchen 73 → 80, Bedroom 54 → 64; but Office 88 → 71, Forest 93 → 86, InsideCity 63 → 57.
 
 **Interpretation.**
-- **Both ways of using SSL beat the supervised baseline** (+3.5 joint, +4.6 two-stage), so the gain comes
-  from the SSL objective, not from one particular training schedule.
+- **Both ways of using SSL are above the supervised baseline** (joint 81.0%, one seed; two-stage 82.1 ± 1.3;
+  supervised 79.2 ± 1.8). The joint run's +1.8 is within seed noise, so on its own it is not conclusive.
 - **Two-stage is slightly better (+1.1 best, +1.7 on the last-10-epoch mean)**, but with one seed each this is
   within plausible run-to-run noise. A likely reason it is ahead: in pretraining the encoder first learns
   general features from the SSL signal alone; in joint training the cross-entropy term reaches ~0 within
@@ -304,11 +310,12 @@ images *without labels*, so only the fine-tuning sees fewer labels.
 |---|---:|---:|---:|
 | 10% (192, ~12 per class) | 51.5% | **64.8%** | **+13.3** |
 | 25% (479, ~30 per class) | 65.4% | **72.3%** | **+6.9** |
-| 100% (1,920) | 77.5% (79.8% at 300 ep) | **82.1%** | +4.6 (+2.3) |
+| 100% (1,920) | 79.2 ± 1.8 (3 seeds) | **82.1 ± 1.3** (3 seeds) | +2.9 |
 
 **Interpretation.**
-- **The fewer the labels, the more SSL helps:** +13.3 points with 10% of labels, shrinking to +2.3–4.6 with
-  all of them. With few labels the supervised network can only memorize (100% train accuracy, val loss
+- **The fewer the labels, the more SSL helps:** +13.3 points with 10% of labels, +6.9 with 25%, and +2.9 with
+  all of them (3-seed means at 100%; single seeds at 10% / 25%, where the gaps are far larger than the
+  ±1–2 point seed noise). With few labels the supervised network can only memorize (100% train accuracy, val loss
   2.2); the SimCLR encoder already separates scenes, so a few labels are enough to name the clusters.
 - **SimCLR with 10% of the labels (64.8%) matches supervised training with 25% (65.4%)**, i.e. about 2.5×
   fewer labels for the same accuracy; with 25% of labels SimCLR (72.3%) is within ~5 points of supervised
