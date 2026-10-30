@@ -34,8 +34,12 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | 8a | Supervised ViT-Tiny | `configs/sup_vit.yaml` | ViT-Tiny (5.4M params, 16px patches) instead of ResNet-18; same data, augmentation, epochs | 65.0% | 14 pts below the supervised ResNet (79.2 ± 1.8). Underfits rather than overfits: only 85.5% train accuracy after 100 epochs (ResNet: 100%). Without convolutions the ViT must learn locality from 1,920 images. |
 | 8b | MAE pretraining (no labels) | `configs/mae_vit.yaml` | ViT-Tiny, 75% of patches hidden, reconstruct their pixels, 800 epochs | kNN 44.4% | Reconstruction loss 1.04 → 0.79; kNN rises 27% → ~44% by epoch 300, then flat. MAE features are poor for nearest-neighbour lookup (ResNet SimCLR: 74%). 20 min. |
 | 8c | MAE + fine-tune | `configs/ft_mae_vit.yaml` | MAE encoder fine-tuned, recipe identical to 8a | 70.0% | **+5.0 over supervised ViT** (65.0), larger than SimCLR's +2.9 for the ResNet, but the ViT stays far below the ResNet (82.1). Train acc 92% vs 85.5%: MAE makes the ViT easier to fit. Single seed. |
+| 8d | Supervised ViT, 300 epochs | `configs/sup_vit_300ep.yaml` | 8a trained 3× longer | 66.5% | Only +1.5 over 100 epochs. The ViT now fits the training set (99% train) but overfits instead (val loss 1.13 at epoch 97 → 1.58): it was short of data, not of training time. |
+| 8e | MAE + fine-tune, 300 epochs | `configs/ft_mae_vit_300ep.yaml` | 8c fine-tuned 3× longer | 68.3% | −1.7 vs 100 epochs (70.0): longer fine-tuning overfits (99% train, final val loss 1.56). MAE's gain over supervised shrinks to +1.8 at 300 epochs (68.3 vs 66.5). |
+| 8f | MAE with 60% masking + fine-tune | `configs/mae_vit_m60.yaml`, `configs/ft_mae_vit_m60.yaml` | 60% of patches hidden (25 of 64 visible) instead of 75% | kNN 43.3% · fine-tune 69.2% | Same as 75% masking (kNN 44.4%, fine-tune 70.0%) within noise: the masking ratio is not what limits the ViT here. |
 | 7a | SimCLR fine-tune, encoder LR 1e-4 | `configs/ft_simclr_enclr.yaml` | Pretrained encoder LR 1e-4, new layer 1e-3 (2b: 1e-3 for both) | 82.3% | Reaches its best at epoch 16 (79% by epoch 10 vs ~65% for 2b), then memorizes and declines (last-10 mean 79.8%, val loss 0.64 → 0.79). Faster, not higher. |
-| 7b | 7a + label smoothing + Mixup/CutMix | `configs/ft_simclr_enclr_mix.yaml` | + label smoothing 0.1, Mixup (α 0.2) / CutMix (α 1.0) on 50% of batches | **84.2%** | Best single run so far (+2.1 over 2b's 3-seed mean). No late decline: last-10 mean 83.4%, final val loss 0.71. Regularization stops the memorization that capped 7a. Single seed. |
+| 7b | 7a + label smoothing + Mixup/CutMix | `configs/ft_simclr_enclr_mix.yaml` | + label smoothing 0.1, Mixup (α 0.2) / CutMix (α 1.0) on 50% of batches | **84.0 ± 0.1** (3 seeds: 84.2, 84.0, 84.0) | +1.9 over 2b (82.1 ± 1.3), +4.8 over supervised (79.2 ± 1.8). Remarkably stable across seeds (±0.1 vs ±1.3–1.8). No late decline: last-10 means 82.9–83.4%, final val loss 0.70–0.71. |
+| **7c** | **Final model: ensemble of the 3 seeds of 7b** | `ensemble.py` | Average of the predicted probabilities | **84.6%** | +0.6 over the seed mean. Fixed as the final model (DECISIONS.md D12b) before any test-set evaluation. |
 
 ---
 
@@ -431,6 +435,8 @@ Two candidates, each changing one thing, both starting from the same SimCLR enco
 | 2b (3 seeds) | — (LR 1e-3 everywhere) | 82.1 ± 1.3 | 64–88 | 81.3 ± 1.2 | 0.81 / 0.85 | ~65% |
 | 7a | encoder LR 1e-4, new layer 1e-3 | 82.3% | 16 | 79.8% | 0.64 / 0.79 | 79.0% |
 | 7b | 7a + label smoothing 0.1 + Mixup/CutMix | **84.2%** | 91 | **83.4%** | 0.66 / 0.71 | 80.2% |
+| 7b, 3 seeds | same | **84.0 ± 0.1** (84.2, 84.0, 84.0) | 59–91 | 83.2 ± 0.3 | 0.67 / 0.71 | — |
+| **7c: final model** | ensemble of the 3 seeds of 7b | **84.6%** | — | — | — | — |
 
 **Interpretation.**
 - **A lower encoder learning rate preserves the SSL features** — 7a reaches 79% in 10 epochs (2b: ~65%):
@@ -442,3 +448,35 @@ Two candidates, each changing one thing, both starting from the same SimCLR enco
   improving until epoch 91: 84.2% best, 83.4% over the last 10 epochs, the best of all runs.
 - The two changes are complementary: the low encoder LR keeps the pretrained features, the regularizers
   prevent the labels from being memorized on top of them.
+- **The recipe is also far more stable:** 84.0 ± 0.1 over 3 seeds, against ± 1.3 (2b) and ± 1.8
+  (supervised). With a high learning rate and no regularization, *which* epoch happens to be best varies a
+  lot between seeds; the regularized, gently fine-tuned model converges to the same accuracy every time.
+- **Final model (D12b, fixed before looking at the test set): the probability-averaged ensemble of the three
+  7b seeds, 84.6% validation accuracy.** Compared with the supervised baseline (79.2 ± 1.8) that is +5.4
+  points, of which +2.9 come from SimCLR pretraining (2b) and the rest from fine-tuning it properly.
+
+### 8d/8e — Was the ViT just undertrained? (300 instead of 100 epochs)
+
+| ViT-Tiny | 100 epochs: best / train acc / final val loss | 300 epochs: best / train acc / final val loss |
+|---|---|---|
+| Supervised (8a → 8d) | 65.0% / 85.5% / 1.14 | 66.5% / 99.2% / 1.58 |
+| MAE + fine-tune (8c → 8e) | **70.0%** / 92.0% / 1.12 | 68.3% / 99.4% / 1.56 |
+
+**No.** With 3× more epochs both ViTs fit the training set (≥ 99%), but validation accuracy barely moves
+(supervised +1.5) or drops (MAE −1.7) and validation loss rises sharply: the extra epochs are spent
+memorizing. The under-fitting at 100 epochs was not the bottleneck; the amount of data is. The MAE
+advantage is clearest at the shorter schedule (+5.0 at 100 epochs vs +1.8 at 300), i.e. MAE mainly gives a
+better *starting point* that reaches good accuracy before memorization sets in — the same pattern as the
+SimCLR ResNet with a low encoder LR (Exp 7a).
+
+### 8f — Masking ratio: 60% vs 75%
+
+| MAE masking | Visible patches | Final MAE loss | kNN | Fine-tune (100 epochs) |
+|---|---:|---:|---:|---:|
+| 75% (8b/8c) | 16 of 64 | 0.79 | 44.4% | 70.0% |
+| 60% (8f) | 25 of 64 | 0.72 | 43.3% | 69.2% |
+
+**No difference within noise.** With 60% masking the reconstruction task is easier (lower loss, as more of
+the image is visible) but the encoder is not better. As with SimCLR's mild views (Exp 5), making the
+pretext task easier does not improve the representation; here it also does not hurt, so the masking ratio
+is not what limits the ViT on 1,920 images — the missing convolutional prior and the amount of data are.
