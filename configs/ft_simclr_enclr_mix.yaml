@@ -1,0 +1,34 @@
+# Experiment 7b — 7a + label smoothing 0.1 + Mixup/CutMix on 50% of batches (regularizers from A1 Step 5c).
+name: ft_simclr_enclr_mix
+seed: 0
+
+init:
+  encoder: runs/simclr_strong/encoder.pt
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 100
+  lr: 0.001                  # new classification layer
+  encoder_lr: 0.0001         # pretrained SimCLR encoder
+  weight_decay: 0.05
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  mix:
+    p: 0.5
+    mixup_alpha: 0.2
+    cutmix_alpha: 1.0

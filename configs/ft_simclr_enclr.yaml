@@ -1,0 +1,30 @@
+# Experiment 7a — SimCLR fine-tune with a 10x lower learning rate for the pretrained encoder (1e-4)
+# than for the new classification layer (1e-3). Otherwise identical to configs/ft_simclr_strong.yaml.
+name: ft_simclr_enclr
+seed: 0
+
+init:
+  encoder: runs/simclr_strong/encoder.pt
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: resnet18
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 100
+  lr: 0.001                  # new classification layer
+  encoder_lr: 0.0001         # pretrained SimCLR encoder
+  weight_decay: 0.05
+  warmup_epochs: 5
