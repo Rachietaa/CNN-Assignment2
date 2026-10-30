@@ -39,7 +39,7 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | 8f | MAE with 60% masking + fine-tune | `configs/mae_vit_m60.yaml`, `configs/ft_mae_vit_m60.yaml` | 60% of patches hidden (25 of 64 visible) instead of 75% | kNN 43.3% · fine-tune 69.2% | Same as 75% masking (kNN 44.4%, fine-tune 70.0%) within noise: the masking ratio is not what limits the ViT here. |
 | 7a | SimCLR fine-tune, encoder LR 1e-4 | `configs/ft_simclr_enclr.yaml` | Pretrained encoder LR 1e-4, new layer 1e-3 (2b: 1e-3 for both) | 82.3% | Reaches its best at epoch 16 (79% by epoch 10 vs ~65% for 2b), then memorizes and declines (last-10 mean 79.8%, val loss 0.64 → 0.79). Faster, not higher. |
 | 7b | 7a + label smoothing + Mixup/CutMix | `configs/ft_simclr_enclr_mix.yaml` | + label smoothing 0.1, Mixup (α 0.2) / CutMix (α 1.0) on 50% of batches | **84.0 ± 0.1** (3 seeds: 84.2, 84.0, 84.0) | +1.9 over 2b (82.1 ± 1.3), +4.8 over supervised (79.2 ± 1.8). Remarkably stable across seeds (±0.1 vs ±1.3–1.8). No late decline: last-10 means 82.9–83.4%, final val loss 0.70–0.71. |
-| **7c** | **Final model: ensemble of the 3 seeds of 7b** | `ensemble.py` | Average of the predicted probabilities | **84.6%** | +0.6 over the seed mean. Fixed as the final model (DECISIONS.md D12b) before any test-set evaluation. |
+| **7c** | **Final model: ensemble of the 3 seeds of 7b** | `ensemble.py` | Average of the predicted probabilities | **84.6%** val · **81.0% test** | +0.6 over the seed mean. Fixed as the final model (DECISIONS.md D12b) before any test-set evaluation. |
 
 ---
 
@@ -480,3 +480,34 @@ SimCLR ResNet with a low encoder LR (Exp 7a).
 the image is visible) but the encoder is not better. As with SimCLR's mild views (Exp 5), making the
 pretext task easier does not improve the representation; here it also does not hurt, so the masking ratio
 is not what limits the ViT on 1,920 images — the missing convolutional prior and the amount of data are.
+
+---
+
+## Test set — evaluated once (2026-10-30), after the final model was fixed on validation
+
+`zsh scripts/run_test.sh` (log: `runs/test.log`; per-run `runs/<name>/eval_test.json`).
+
+| Method | Val acc | **Test acc** | Val → test |
+|---|---:|---:|---:|
+| Supervised ResNet-18 (3 seeds: 76.5, 75.25, 75.75) | 79.2 ± 1.8 | **75.8 ± 0.6** | −3.4 |
+| SimCLR + fine-tune (3 seeds: 77.0, 80.0, 75.5) | 82.1 ± 1.3 | **77.5 ± 2.3** | −4.6 |
+| Joint CE + SimCLR | 81.0 | **77.8** | −3.2 |
+| Supervised ViT-Tiny | 65.0 | **63.3** | −1.7 |
+| MAE + fine-tune (ViT-Tiny) | 70.0 | **66.0** | −4.0 |
+| Best recipe (3 seeds: 79.5, 80.25, 80.75) | 84.0 ± 0.1 | **80.2 ± 0.6** | −3.8 |
+| **Final model: ensemble of the 3 best-recipe seeds** | **84.6** | **81.0** | −3.6 |
+
+**Observations.**
+- **The ranking is unchanged from validation to test**; every method loses 2–5 points. Model selection used
+  the best validation epoch of every run on a 480-image validation set, so validation numbers are
+  optimistic by a similar amount for all methods.
+- **SimCLR + plain fine-tuning vs supervised: +1.7 on test**, within the ±2.3 seed spread of the SimCLR runs
+  (on validation: +2.9). With all labels and a plain fine-tune, the SSL benefit is small.
+- **The best recipe vs supervised: +4.4 on test (80.2 ± 0.6 vs 75.8 ± 0.6)**, clearly beyond seed noise. The
+  SimCLR encoder pays off when it is fine-tuned gently and regularized.
+- **Joint vs two-stage:** joint is ahead on test (77.8 vs 77.5), two-stage on validation; no clear winner.
+- **ViT: MAE +2.7 on test** (66.0 vs 63.3), still far below every ResNet.
+- **Final model errors (76 of 400):** natural scenes predicted as OpenCountry (Coast 6, Mountain 5, Forest 4)
+  and indoor rooms confused with each other (LivingRoom → Kitchen 4, LivingRoom → Bedroom 4,
+  Kitchen → LivingRoom 4). Weakest test classes: Industrial 52%, LivingRoom 56%, Kitchen 64%, Store 68%;
+  Highway, Street and Suburb 100%.
