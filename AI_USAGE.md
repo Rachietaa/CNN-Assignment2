@@ -47,6 +47,12 @@ the result as "+4.6 points over the supervised baseline". With three seeds of ea
 79.2 ± 1.8 and SimCLR 82.1 ± 1.3: the real gain at 100% labels is **+2.9**, because the first supervised
 seed happened to be the worst of the three. The single-seed number overstated the effect by 60%.
 
+**Missing control: crediting the best recipe's gain to SSL.** The AI built the best recipe by adding label
+smoothing and Mixup/CutMix to the SimCLR fine-tune, then wrote in the report draft that SSL gave "+4.4 on test"
+over the supervised baseline, without giving that baseline the same regularizers. A second review of the work
+caught the confound. The matched control (supervised + the same regularizers) reached 80.6 ± 0.4 on test,
+equal to the SimCLR recipe (80.2 ± 0.6): with all labels the gain came from regularization, not from SSL.
+
 **Incorrect: SimCLR's blur copied from the paper unchanged.** The first SimCLR augmentation used the paper's
 blur strength (σ up to 2.0 pixels), which was set for 224px images. On our 128px images it blurs ~1.75×
 more relative to the content, and the view preview showed several unrecognizable views.
@@ -72,6 +78,7 @@ before checking the history file; several time estimates were off by 10–30%.
 | Issue | How it was verified | Change made |
 |---|---|---|
 | Single-seed SSL gain | Ran 2 more seeds of both the supervised baseline and the SimCLR fine-tune | Report 82.1 ± 1.3 vs 79.2 ± 1.8 (+2.9); every comparison in EXPERIMENTS.md rewritten with seed means |
+| Best recipe's +4.4 credited to SSL | Supervised baseline retrained with the same regularizers, 3 seeds, val + test | Report rewritten: with all labels SSL gives no test gain over a regularized supervised model; final model unchanged |
 | "SSL gain = more training?" | 300-epoch supervised control | 79.8%, the same as the 100-epoch mean: training longer does not explain the gain |
 | Blur too strong | Looked at the view preview **before** the 1-hour SimCLR run | σ scaled to the image size (0.1–1.15); both previews kept as evidence |
 | DINO collapse | Watched the per-image and batch entropy of the teacher's targets every epoch; measured the cause on a random network | BatchNorm head + teacher temperature 0.02; automatic collapse guard |

@@ -27,6 +27,7 @@ Validation accuracy (mean ± std over 3 seeds where shown); test accuracy evalua
 | Method | Backbone | Val acc | Test acc |
 |---|---|---:|---:|
 | Supervised baseline | ResNet-18 | 79.2 ± 1.8 | 75.8 ± 0.6 |
+| Supervised + label smoothing + Mixup/CutMix (control) | ResNet-18 | 82.7 ± 0.4 | 80.6 ± 0.4 |
 | SimCLR pretraining + fine-tuning | ResNet-18 | 82.1 ± 1.3 | 77.5 ± 2.3 |
 | Joint cross-entropy + SimCLR (one stage) | ResNet-18 | 81.0 | 77.8 |
 | DINO-style self-distillation | ResNet-18 | collapsed; fixed version stopped (kNN 39%) | — |
@@ -35,8 +36,10 @@ Validation accuracy (mean ± std over 3 seeds where shown); test accuracy evalua
 | **Best recipe: SimCLR + gentle, regularized fine-tuning (3 seeds)** | ResNet-18 | **84.0 ± 0.1** | 80.2 ± 0.6 |
 | **Final model: ensemble of those 3 seeds** | ResNet-18 | **84.6** | **81.0** |
 
-Label efficiency (validation): with 10% of the labels SimCLR + fine-tuning reaches 64.8% vs 51.5% supervised
-(+13.3); with 25%, 72.3% vs 65.4% (+6.9).
+**Main finding:** with all labels, a supervised ResNet-18 given the same regularizers as the best recipe
+matches it on test (80.6 vs 80.2), so the gain over the plain baseline comes mostly from regularization. SSL's
+clear benefit is with scarce labels: with 10% of the labels SimCLR + fine-tuning reaches 64.8% vs 51.5%
+supervised (+13.3); with 25%, 72.3% vs 65.4% (+6.9) (validation, same plain recipe for both).
 
 ## Final recipe
 
@@ -125,6 +128,7 @@ Each experiment is one YAML config; outputs (history, curves, summary, evaluatio
 |---|---|---|
 | 1 | Supervised baseline (+ seeds 1, 2) | `python train_classifier.py --config configs/sup_resnet18.yaml [--seed 1]` |
 | 1b | 300-epoch supervised control | `python train_classifier.py --config configs/sup_resnet18_300ep.yaml` |
+| 1c | Supervised + best-recipe regularizers (control) | [scripts/run_reg_control.sh](scripts/run_reg_control.sh) |
 | 2 | SimCLR pretraining, linear probe, fine-tune | `train_ssl.py` with `simclr_strong.yaml`; `train_classifier.py` with `probe_simclr_strong.yaml`, `ft_simclr_strong.yaml` |
 | 3 | Joint CE + SimCLR | `python train_joint.py --config configs/joint_simclr.yaml` |
 | 4 | DINO (collapsed) / DINO with fixes | `train_ssl.py` with `dino.yaml` / `dino_bn.yaml` ([scripts/run_dino.sh](scripts/run_dino.sh)) |
