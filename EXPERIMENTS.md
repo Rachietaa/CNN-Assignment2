@@ -28,8 +28,12 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1 ± 1.3** (3 seeds) | **+2.9 over supervised (79.2 ± 1.8, 3 seeds)**; seed 0 alone suggested +4.6 because the supervised seed 0 was unlucky. Every SimCLR seed ≥ 80.8; supervised seeds 77.5–81.0. Faster learning (70.3 vs 66.0 at epoch 20). Seed-0 run: no class worse, biggest gains OpenCountry +14, Bedroom +10, Kitchen +10. |
 | 3 | Joint CE + SimCLR | `configs/joint_simclr.yaml` | One stage from random init: cross-entropy + 1.0 × SimCLR loss, 300 epochs | 81.0% | +1.8 over the supervised 3-seed mean (79.2), −1.1 vs pretrain + fine-tune (82.1); both within seed noise (±1.3–1.8). Lowest val loss of the fine-tuned models (0.74). Different per-class profile: OpenCountry +21, Industrial +17, Flower +10, but Office −17, Forest −7, InsideCity −7 vs supervised. Still 100% train accuracy. |
 | 4 (1st) | DINO, first attempt | `configs/dino.yaml` | DINO-style self-distillation, paper-style head, teacher T 0.04 | **collapsed** | Loss stuck at 6.89 ≈ log(1,024) from epoch 3: teacher targets uniform for every image, nothing to learn. Stopped at epoch 13. See Exp 4 section. |
+| 4 (2nd) | DINO, BatchNorm head + teacher T 0.02 | `configs/dino_bn.yaml` | Fix for the collapse (D8b) | **kNN 39.2%** at epoch 100 (stopped) | No collapse any more (confident, diverse targets), but kNN stays at 38–42% while SimCLR reaches 69% at the same epoch; stopped by the pre-set rule (D8c). |
 | 5 | SimCLR, mild augmentation (ablation) | `configs/simclr_mild.yaml` (+ probe, fine-tune) | SimCLR views = A1's mild augmentation (crop 70–100%, ±20% brightness/contrast, no blur) | kNN 61.0% · probe 64.6% · fine-tune 77.7% | Easier SSL task (final loss 1.58 vs 1.92) but much worse features: −13 kNN, −11 probe, −4.4 fine-tune vs strong views. Fine-tune gain over supervised disappears (77.7 vs 77.5). |
 | 6 | Label efficiency | `configs/{sup,ft_simclr}_{10,25}pct.yaml` | 10% / 25% of labels, supervised vs SimCLR fine-tune, 200 epochs | 10%: 51.5 → **64.8** · 25%: 65.4 → **72.3** | SSL gain grows as labels shrink: +13.3 (10%), +6.9 (25%), +2.9 (100%, 3-seed means). SimCLR with 10% labels ≈ supervised with 25%. |
+| 8a | Supervised ViT-Tiny | `configs/sup_vit.yaml` | ViT-Tiny (5.4M params, 16px patches) instead of ResNet-18; same data, augmentation, epochs | 65.0% | 14 pts below the supervised ResNet (79.2 ± 1.8). Underfits rather than overfits: only 85.5% train accuracy after 100 epochs (ResNet: 100%). Without convolutions the ViT must learn locality from 1,920 images. |
+| 8b | MAE pretraining (no labels) | `configs/mae_vit.yaml` | ViT-Tiny, 75% of patches hidden, reconstruct their pixels, 800 epochs | kNN 44.4% | Reconstruction loss 1.04 → 0.79; kNN rises 27% → ~44% by epoch 300, then flat. MAE features are poor for nearest-neighbour lookup (ResNet SimCLR: 74%). 20 min. |
+| 8c | MAE + fine-tune | `configs/ft_mae_vit.yaml` | MAE encoder fine-tuned, recipe identical to 8a | 70.0% | **+5.0 over supervised ViT** (65.0), larger than SimCLR's +2.9 for the ResNet, but the ViT stays far below the ResNet (82.1). Train acc 92% vs 85.5%: MAE makes the ViT easier to fit. Single seed. |
 
 ---
 
@@ -264,7 +268,33 @@ grayscale scenes and a CNN they do not.
 
 Two changes: BatchNorm in the head (rescales the between-image differences; initial target entropy
 6.79 → 5.96) and teacher temperature 0.04 → 0.02. A guard stops the run at epoch 25 if the target entropy is
-still above 95% of the maximum. *Pending.*
+still above 95% of the maximum.
+
+| Epoch | SSL loss | H(teacher target) | H(batch mean) | kNN val acc | SimCLR kNN, same epoch |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 6.72 | 3.33 | 6.12 | | |
+| 5 | 5.25 | 2.86 | 5.26 | | |
+| 10 | 4.44 | 2.80 | 4.64 | | |
+| 25 | 4.06 | 2.54 | 4.56 | 38.1% | 58.8% |
+| 50 | 3.50 | 1.54 | 4.25 | 42.3% | 63.5% |
+| 75 | 3.49 | 1.60 | 4.18 | 41.5% | 66.0% |
+| 100 | 3.84 | 2.00 | 4.46 | **39.2%** | 68.8% |
+
+**The fix worked against collapse:** from the first epoch each image gets a confident target (entropy
+2–3.3 instead of 6.8) and different images use different prototypes (batch-mean entropy ≈ 4.2–4.6, i.e.
+roughly 70–100 prototypes in use), and the loss falls instead of sitting at log K.
+
+**But the features carry little scene information.** kNN accuracy stays at 38–42% for 100 epochs while
+SimCLR's rises from 59% to 69% over the same epochs. By the stopping rule fixed in advance (DECISIONS.md
+D8c: stop if kNN < 55% at epoch 100) the run was stopped at epoch 100 (log: `runs/dino_bn.log`).
+
+**Interpretation — is a more complicated SSL method better?** No, not here. DINO needed two changes just to
+avoid collapse, and even then its self-made "pseudo-classes" (prototypes) do not line up with scene
+categories: the student can match the teacher's prototype assignment using cues that do not separate
+scenes. SimCLR's objective is more direct — each image must be distinguished from 510 others — and it
+worked on the first attempt. DINO's machinery (EMA teacher, centering, sharpening, multi-crop, 1,024
+prototypes) was designed for millions of images; with 1,920 grayscale scenes, the simpler contrastive
+signal is both more stable and more informative.
 
 
 ---
@@ -323,3 +353,66 @@ images *without labels*, so only the fine-tuning sees fewer labels.
 - SimCLR also learns faster with few labels: at epoch 20, 50.0% vs 36.2% (10%) and 61.7% vs 46.7% (25%).
 - This answers "does SSL reduce overfitting?" most directly: in the label-scarce regime where overfitting is
   worst, SSL pretraining gives the largest improvement and much lower validation loss (1.39 vs 2.23 at 10%).
+
+
+---
+
+## Experiment 8 — Does the backbone change the benefit of SSL? (ViT-Tiny, supervised vs MAE)
+
+**Masked image modeling (MAE).** Each 128px image is cut into 64 patches of 16×16 pixels; 75% of them are
+hidden at random. The ViT encoder sees only the 16 visible patches; a light decoder (4 blocks, width 128)
+receives the encoded visible patches plus a learned "mask token" at every hidden position and must
+reconstruct the hidden patches' pixels (each target patch normalized to zero mean and unit variance, so the
+model must predict structure — edges, layout — rather than brightness). With 75% hidden, the missing parts
+cannot be filled in by copying neighbours; the encoder has to model what scenes look like. The decoder is
+discarded; the encoder is fine-tuned with the same recipe as the supervised ViT. Implemented from scratch,
+random init, the 1,920 training images only (no MAE weights used).
+
+**Prediction made before running (DECISIONS.md D11):** a ViT from scratch on 1,920 images will be much
+weaker than the ResNet, and SSL may help it more.
+
+### 8a — Supervised ViT-Tiny: 65.0%
+
+| Backbone (supervised, 100 epochs) | Params | Best val | Final train acc | Min val loss | Val at epoch 20 |
+|---|---:|---:|---:|---:|---:|
+| ResNet-18 (Exp 1, 3 seeds) | 11.2M | 79.2 ± 1.8 | 100% | 0.87 | 66.0% |
+| ViT-Tiny | 5.4M | 65.0% | 85.5% | 1.12 | 47.7% |
+
+The ViT is 14 points worse and, unlike every ResNet run, **does not even fit the training set** in 100
+epochs. A CNN's convolutions build in that nearby pixels belong together and that a pattern means the same
+thing anywhere in the image; a ViT has to learn both from the data, and 1,920 images are not enough.
+
+### 8b/8c — MAE pretraining and fine-tuning
+
+| Epoch | MAE loss | kNN val acc |
+|---:|---:|---:|
+| 1 | 1.04 | |
+| 50 | 0.96 | 26.9% |
+| 100 | 0.94 | 35.0% |
+| 300 | 0.83 | 44.2% |
+| 500 | 0.80 | 43.1% |
+| 800 | 0.79 | 44.4% |
+
+(Loss 1.0 = predicting the mean of each normalized patch, i.e. no information about the hidden content.)
+
+| | Supervised | SSL + fine-tune | SSL gain | Final train acc (sup → SSL) | Min val loss (sup → SSL) |
+|---|---:|---:|---:|---|---|
+| ResNet-18 + SimCLR (3 seeds) | 79.2 ± 1.8 | 82.1 ± 1.3 | **+2.9** | 100% → 100% | 0.87 → 0.81 |
+| ViT-Tiny + MAE (1 seed) | 65.0 | 70.0 | **+5.0** | 85.5% → 92.0% | 1.12 → 1.02 |
+
+**Interpretation — does the backbone change the benefit of SSL?**
+- **Yes: the weaker the architecture's built-in assumptions, the more SSL helps.** MAE adds +5.0 points to
+  the ViT versus +2.9 from SimCLR for the ResNet. The ViT has no convolutional prior, so learning "what
+  images look like" from reconstruction gives it structure the ResNet already has by design. (Single seed
+  for the ViT; with the ±1.3–1.8 seed spread seen for the ResNet, +5.0 is likely, but not certainly, real.)
+- **But SSL does not make up for the architecture:** the MAE ViT (70.0%) is still 9 points below even the
+  *supervised* ResNet (79.2%). With 1,920 images, the convolutional prior is worth more than any SSL
+  pretraining we tried.
+- **MAE features are poor for kNN (44%) yet fine-tune well.** Reconstruction learns low-level, pixel-
+  predictive features that are not arranged by scene class (unlike SimCLR's, which are explicitly pulled
+  together per image); fine-tuning rearranges them. This matches the MAE paper's observation that MAE
+  features need fine-tuning more than contrastive features do.
+- MAE pretraining makes the ViT **easier to optimize** (train accuracy 85.5% → 92.0% with the same
+  recipe): with a ViT, the problem was under-fitting, and pretraining helps the optimization itself.
+- The two backbones are paired with different SSL methods (SimCLR for the CNN, MAE for the ViT), so this
+  compares "best-suited SSL per backbone", not one method across backbones.
