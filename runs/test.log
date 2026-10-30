@@ -1,0 +1,43 @@
+
+===== sup_resnet18 =====
+test loss 0.9656 | test accuracy 0.7650
+
+===== sup_resnet18_s1 =====
+test loss 1.0233 | test accuracy 0.7525
+
+===== sup_resnet18_s2 =====
+test loss 0.9778 | test accuracy 0.7575
+
+===== ft_simclr_strong =====
+test loss 0.9431 | test accuracy 0.7700
+
+===== ft_simclr_strong_s1 =====
+test loss 0.9000 | test accuracy 0.8000
+
+===== ft_simclr_strong_s2 =====
+test loss 1.0121 | test accuracy 0.7550
+
+===== joint_simclr =====
+test loss 0.9134 | test accuracy 0.7775
+
+===== sup_vit =====
+test loss 1.1539 | test accuracy 0.6325
+
+===== ft_mae_vit =====
+test loss 1.0820 | test accuracy 0.6600
+
+===== ft_simclr_enclr_mix =====
+test loss 0.7660 | test accuracy 0.7950
+
+===== ft_simclr_enclr_mix_s1 =====
+test loss 0.7871 | test accuracy 0.8025
+
+===== ft_simclr_enclr_mix_s2 =====
+test loss 0.7486 | test accuracy 0.8075
+
+===== final model: ensemble of the 3 best-recipe seeds =====
+runs/ft_simclr_enclr_mix/best.pt: test accuracy 0.7950
+runs/ft_simclr_enclr_mix_s1/best.pt: test accuracy 0.8025
+runs/ft_simclr_enclr_mix_s2/best.pt: test accuracy 0.8075
+Ensemble of 3: test accuracy 0.8100
+Saved runs/ens_final/eval_test.json
