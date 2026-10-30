@@ -23,6 +23,7 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 |---|---|---|---|---:|---|
 | 1 | Supervised baseline | `configs/sup_resnet18.yaml` | ResNet-18, random init, cross-entropy only, 100 epochs | 77.5% (seed 0); **79.2 ± 1.8** (3 seeds) | Severe overfitting: train acc 99.9% vs val 77.5% (22-pt gap). Val loss stops improving after ~epoch 50 (min 0.93) while train loss → 0.008. Below the much smaller A1 SceneCNN (84.7%, 1.2M params), so more capacity without more labels does not help. Weakest: Bedroom 54%, OpenCountry 57%, Industrial 62%, InsideCity 63%. |
 | 1b | Supervised, 3× longer (control) | `configs/sup_resnet18_300ep.yaml` | Exp 1 trained 300 epochs instead of 100 | 79.8% (1 seed) | Equal to the 3-seed mean of the 100-epoch baseline (79.2 ± 1.8): training longer does not clearly help. Val loss is the worst of all runs (min 0.98, final 1.01): longer supervised training mainly makes the model more over-confident. |
+| 1c | Supervised + label smoothing + Mixup/CutMix (control for Exp 7) | `configs/sup_resnet18_reg.yaml` | Exp 1 + the regularizers of the best recipe; no SSL | **82.7 ± 0.4** (3 seeds) · test **80.6 ± 0.4** | Matches the best SimCLR recipe on test (80.2 ± 0.6) and is 1.3 below it on validation (84.0 ± 0.1). With all labels, the regularizers explain most of the gain over Exp 1, not SSL. Ensemble: 84.4% val, 81.75% test. |
 | 2 | SimCLR pretraining (no labels) | `configs/simclr_strong.yaml` | Same ResNet-18 pretrained with the SimCLR loss on the 1,920 train images, 500 epochs | kNN 74.2% (final encoder, no labels) | kNN accuracy of the label-free features: 58.8% (ep 25) → 68.8% (ep 100) → plateau at 73–75% from epoch ~200 while the SSL loss keeps falling (2.32 → 1.92). 57 min on the Mac. |
 | 2a | SimCLR linear probe | `configs/probe_simclr_strong.yaml` | Frozen SimCLR encoder, only a new linear layer (8,208 weights) trained | 75.2% | Within 2.3 pts of the fully trained supervised network while training 0.07% of the weights. Lower val loss than any other run (0.71). |
 | 2b | SimCLR + fine-tune | `configs/ft_simclr_strong.yaml` | SimCLR encoder, all layers fine-tuned; recipe identical to Exp 1 | **82.1 ± 1.3** (3 seeds) | **+2.9 over supervised (79.2 ± 1.8, 3 seeds)**; seed 0 alone suggested +4.6 because the supervised seed 0 was unlucky. Every SimCLR seed ≥ 80.8; supervised seeds 77.5–81.0. Faster learning (70.3 vs 66.0 at epoch 20). Seed-0 run: no class worse, biggest gains OpenCountry +14, Bedroom +10, Kitchen +10. |
@@ -511,3 +512,34 @@ is not what limits the ViT on 1,920 images — the missing convolutional prior a
   and indoor rooms confused with each other (LivingRoom → Kitchen 4, LivingRoom → Bedroom 4,
   Kitchen → LivingRoom 4). Weakest test classes: Industrial 52%, LivingRoom 56%, Kitchen 64%, Store 68%;
   Highway, Street and Suburb 100%.
+
+
+---
+
+## Experiment 1c — Control: does the best recipe's gain come from SSL or from the regularizers?
+
+Added after the test evaluation, on a reviewer's suggestion: the best recipe (Exp 7b) differs from the supervised
+baseline in SimCLR pretraining, the lower encoder learning rate *and* label smoothing + Mixup/CutMix, so its
++4.4 test advantage could not be credited to SSL. This run gives the supervised baseline the same regularizers
+(the lower encoder LR does not apply without a pretrained encoder). The final model was not changed.
+
+`zsh scripts/run_reg_control.sh` (log: `runs/reg_control.log`).
+
+| ResNet-18, all labels | Val (3 seeds) | Test (3 seeds) | Ensemble val / test | Val at epoch 10 |
+|---|---:|---:|---:|---:|
+| Supervised, plain (Exp 1) | 79.2 ± 1.8 | 75.8 ± 0.6 | 81.0 / — | ~46% |
+| **Supervised + label smoothing + Mixup/CutMix (1c)** | **82.7 ± 0.4** | **80.6 ± 0.4** | 84.4 / 81.75 | 60–63% |
+| SimCLR + low encoder LR + same regularizers (7b) | 84.0 ± 0.1 | 80.2 ± 0.6 | 84.6 / 81.0 | ~80% |
+
+**Interpretation.**
+- **With all 1,920 labels, regularization — not SSL — explains most of the improvement.** The regularized
+  supervised model matches the best SimCLR recipe on test (80.6 vs 80.2, within noise) and is 1.3 points
+  behind on validation. The earlier "+4.4 on test from SSL" was confounded.
+- **What SSL still adds with all labels:** much faster fine-tuning (~80% validation after 10 epochs vs 60–63%)
+  and a small, consistent validation advantage; no measurable test advantage.
+- **SSL's clear benefit remains the label-scarce regime** (Exp 6: +13.3 at 10%, +6.9 at 25%), but those runs
+  used the plain recipe for both sides; whether a regularized supervised baseline would close part of that
+  gap is untested.
+- **Final model unchanged.** It was fixed on validation before this control existed, and on validation the
+  SimCLR ensemble (84.6) is still marginally ahead of the control ensemble (84.4). Switching to the control
+  because of its test score would be selecting on the test set.
