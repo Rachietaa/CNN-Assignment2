@@ -1,0 +1,10 @@
+{
+  "name": "ft_simclr_enclr_mix_s2",
+  "best_val_acc": 0.8395833333333333,
+  "best_epoch": 59,
+  "final_train_acc": 0.8645833333333334,
+  "params": 11178448,
+  "train_seconds": 360.2,
+  "device": "mps",
+  "torch": "2.14.1"
+}
