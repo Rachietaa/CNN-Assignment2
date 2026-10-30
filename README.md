@@ -8,7 +8,7 @@ trained only on the provided images. SimCLR, DINO and MAE are implemented from s
 
 | | Accuracy |
 |---|---:|
-| **Test (400 images, evaluated once on the final model)** | **TEST_FINAL** |
+| **Test (400 images, evaluated once on the final model)** | **81.0%** |
 | Validation (480 images, used for all model selection) | 84.6% |
 | Supervised baseline, same network (validation, 3 seeds) | 79.2 ± 1.8% |
 
@@ -26,14 +26,14 @@ Validation accuracy (mean ± std over 3 seeds where shown); test accuracy evalua
 
 | Method | Backbone | Val acc | Test acc |
 |---|---|---:|---:|
-| Supervised baseline | ResNet-18 | 79.2 ± 1.8 | TEST_SUP |
-| SimCLR pretraining + fine-tuning | ResNet-18 | 82.1 ± 1.3 | TEST_SIMCLR |
-| Joint cross-entropy + SimCLR (one stage) | ResNet-18 | 81.0 | TEST_JOINT |
+| Supervised baseline | ResNet-18 | 79.2 ± 1.8 | 75.8 ± 0.6 |
+| SimCLR pretraining + fine-tuning | ResNet-18 | 82.1 ± 1.3 | 77.5 ± 2.3 |
+| Joint cross-entropy + SimCLR (one stage) | ResNet-18 | 81.0 | 77.8 |
 | DINO-style self-distillation | ResNet-18 | collapsed; fixed version stopped (kNN 39%) | — |
-| Supervised baseline | ViT-Tiny | 65.0 | TEST_SUPVIT |
-| MAE pretraining + fine-tuning | ViT-Tiny | 70.0 | TEST_MAE |
-| **Best recipe: SimCLR + gentle, regularized fine-tuning (3 seeds)** | ResNet-18 | **84.0 ± 0.1** | TEST_7B |
-| **Final model: ensemble of those 3 seeds** | ResNet-18 | **84.6** | **TEST_FINAL** |
+| Supervised baseline | ViT-Tiny | 65.0 | 63.3 |
+| MAE pretraining + fine-tuning | ViT-Tiny | 70.0 | 66.0 |
+| **Best recipe: SimCLR + gentle, regularized fine-tuning (3 seeds)** | ResNet-18 | **84.0 ± 0.1** | 80.2 ± 0.6 |
+| **Final model: ensemble of those 3 seeds** | ResNet-18 | **84.6** | **81.0** |
 
 Label efficiency (validation): with 10% of the labels SimCLR + fine-tuning reaches 64.8% vs 51.5% supervised
 (+13.3); with 25%, 72.3% vs 65.4% (+6.9).
@@ -97,7 +97,7 @@ curl -L $BASE/final_seed2.pt -o runs/ft_simclr_enclr_mix_s2/best.pt
 ```bash
 CKPTS="runs/ft_simclr_enclr_mix/best.pt runs/ft_simclr_enclr_mix_s1/best.pt runs/ft_simclr_enclr_mix_s2/best.pt"
 python ensemble.py --split val  --out runs/ens_final --checkpoints $CKPTS   # 84.6%
-python ensemble.py --split test --out runs/ens_final --checkpoints $CKPTS   # TEST_FINAL
+python ensemble.py --split test --out runs/ens_final --checkpoints $CKPTS   # 81.0%
 ```
 
 **Inference on new images** (e.g. the unlabeled `test2` folder) → CSV of predicted classes:
