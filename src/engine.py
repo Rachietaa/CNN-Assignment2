@@ -54,14 +54,27 @@ def evaluate(model, loader, device, num_classes=None):
     return {'loss': loss_sum / total, 'acc': correct / total, 'confusion': confusion}
 
 
+def build_mixer(mix_cfg, num_classes):
+    """Mixup or CutMix, chosen at random per mixed batch. Returns None if not configured."""
+    if not mix_cfg:
+        return None
+    from torchvision.transforms import v2
+    return v2.RandomChoice([v2.MixUp(alpha=mix_cfg['mixup_alpha'], num_classes=num_classes),
+                            v2.CutMix(alpha=mix_cfg['cutmix_alpha'], num_classes=num_classes)])
+
+
 def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label_smoothing=0.0,
-                     freeze_encoder=False):
+                     freeze_encoder=False, mix_cfg=None, num_classes=16):
     """Train with cross-entropy and keep the weights from the epoch with the best validation accuracy.
     The test set is never touched here.
 
     freeze_encoder: linear probe; the encoder also stays in eval mode so its BatchNorm statistics
-    remain exactly those learned during pretraining."""
+    remain exactly those learned during pretraining.
+    mix_cfg: {'p', 'mixup_alpha', 'cutmix_alpha'}: with probability p a batch is mixed with Mixup (blend
+    two images and their labels) or CutMix (paste a patch of one image into another); labels become soft.
+    Train accuracy is then measured against the original labels, so it is approximate."""
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+    mixer = build_mixer(mix_cfg, num_classes)
     model = model.to(device)
     best_state, best_val_acc, best_epoch = copy.deepcopy(model.state_dict()), 0.0, 0
     history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': [], 'lr': []}
@@ -74,10 +87,13 @@ def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label
         history['lr'].append(optimizer.param_groups[0]['lr'])
         loss_sum, correct, seen = 0.0, 0, 0
         for images, labels in loaders['train']:
-            images, labels = images.to(device), labels.to(device)
+            targets = labels
+            if mixer is not None and random.random() < mix_cfg['p']:
+                images, targets = mixer(images, labels)
+            images, labels, targets = images.to(device), labels.to(device), targets.to(device)
             optimizer.zero_grad(set_to_none=True)
             logits = model(images)
-            loss = criterion(logits, labels)
+            loss = criterion(logits, targets)
             loss.backward()
             optimizer.step()
             scheduler.step()

@@ -71,13 +71,21 @@ def main():
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'Trainable parameters: {n_params:,}')
 
-    trainable = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.AdamW(trainable, lr=tr['lr'], weight_decay=tr['weight_decay'])
+    if tr.get('encoder_lr') is not None and not freeze:
+        # Lower learning rate for the pretrained encoder than for the new classification layer, so the
+        # first large updates (driven by the random new layer) do not overwrite the SSL features.
+        groups = [{'params': model.encoder.parameters(), 'lr': tr['encoder_lr']},
+                  {'params': model.fc.parameters(), 'lr': tr['lr']}]
+        print(f"Learning rates: encoder {tr['encoder_lr']}, classification layer {tr['lr']}")
+    else:
+        groups = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(groups, lr=tr['lr'], weight_decay=tr['weight_decay'])
     steps = len(loaders['train'])
     scheduler = cosine_with_warmup(optimizer, tr['epochs'] * steps, tr.get('warmup_epochs', 0) * steps)
     model, history, best_val_acc, best_epoch, seconds = train_classifier(
         model, loaders, optimizer, scheduler, tr['epochs'], device,
-        label_smoothing=tr.get('label_smoothing', 0.0), freeze_encoder=freeze)
+        label_smoothing=tr.get('label_smoothing', 0.0), freeze_encoder=freeze,
+        mix_cfg=tr.get('mix'), num_classes=len(classes))
 
     out_dir = Path('runs') / cfg['name']
     out_dir.mkdir(parents=True, exist_ok=True)
