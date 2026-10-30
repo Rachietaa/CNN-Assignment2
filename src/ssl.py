@@ -92,15 +92,23 @@ class DINOHead(nn.Module):
     Normalizing both the features and the prototype weights equals DINO's weight-normalized last layer
     with the norm fixed to 1."""
 
-    def __init__(self, in_dim, hidden_dim, bottleneck_dim, out_dim):
+    def __init__(self, in_dim, hidden_dim, bottleneck_dim, out_dim, use_bn=False, norm_last_layer=True):
         super().__init__()
-        self.mlp = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.GELU(),
-                                 nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+        # use_bn: BatchNorm after each hidden layer (DINO's `use_bn_in_head` option). At random init a CNN
+        # maps all images to nearly the same feature vector; BatchNorm rescales the differences between
+        # images in a batch to unit size, so the centered teacher output is not near-uniform.
+        def block(i, o):
+            return [nn.Linear(i, o)] + ([nn.BatchNorm1d(o)] if use_bn else []) + [nn.GELU()]
+        self.mlp = nn.Sequential(*block(in_dim, hidden_dim), *block(hidden_dim, hidden_dim),
                                  nn.Linear(hidden_dim, bottleneck_dim))
         self.prototypes = nn.Parameter(torch.randn(out_dim, bottleneck_dim) * 0.02)
+        # norm_last_layer=False: each prototype also gets a learnable length g (init 1), so the logits are
+        # no longer bounded to [-1, 1] and the outputs can become sharp (DINO's `norm_last_layer` option).
+        self.scale = None if norm_last_layer else nn.Parameter(torch.ones(out_dim))
 
     def forward(self, x):
-        return F.normalize(self.mlp(x), dim=1) @ F.normalize(self.prototypes, dim=1).t()
+        logits = F.normalize(self.mlp(x), dim=1) @ F.normalize(self.prototypes, dim=1).t()
+        return logits if self.scale is None else logits * self.scale
 
 
 class DINOLoss(nn.Module):
