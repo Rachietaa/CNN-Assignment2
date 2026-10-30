@@ -1,0 +1,11 @@
+{
+  "name": "mae_vit_m60",
+  "method": "mae",
+  "epochs": 800,
+  "final_loss": 0.7160608002117702,
+  "final_knn_acc": 0.4333333373069763,
+  "best_knn_acc": 0.43958333134651184,
+  "train_seconds": 1413.9,
+  "device": "mps",
+  "torch": "2.14.1"
+}

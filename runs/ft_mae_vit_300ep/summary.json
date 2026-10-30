@@ -1,0 +1,10 @@
+{
+  "name": "ft_mae_vit_300ep",
+  "best_val_acc": 0.6833333333333333,
+  "best_epoch": 166,
+  "final_train_acc": 0.9942708333333333,
+  "params": 5391184,
+  "train_seconds": 945.8,
+  "device": "mps",
+  "torch": "2.14.1"
+}

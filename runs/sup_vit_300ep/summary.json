@@ -1,0 +1,10 @@
+{
+  "name": "sup_vit_300ep",
+  "best_val_acc": 0.6645833333333333,
+  "best_epoch": 139,
+  "final_train_acc": 0.9916666666666667,
+  "params": 5391184,
+  "train_seconds": 972.2,
+  "device": "mps",
+  "torch": "2.14.1"
+}
