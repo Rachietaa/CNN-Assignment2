@@ -1,0 +1,32 @@
+# Experiment 8e — MAE-pretrained ViT-Tiny fine-tuned 300 epochs (8c: 100). Pairs with configs/sup_vit_300ep.yaml.
+name: ft_mae_vit_300ep
+seed: 0
+
+init:
+  encoder: runs/mae_vit/encoder.pt
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: vit
+  patch_size: 16
+  dim: 192
+  depth: 12
+  heads: 3
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 300
+  lr: 0.0005
+  weight_decay: 0.05
+  warmup_epochs: 10

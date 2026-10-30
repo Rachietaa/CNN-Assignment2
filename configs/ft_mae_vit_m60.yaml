@@ -1,0 +1,32 @@
+# Experiment 8f — fine-tune of the 60%-masking MAE encoder; recipe identical to configs/ft_mae_vit.yaml.
+name: ft_mae_vit_m60
+seed: 0
+
+init:
+  encoder: runs/mae_vit_m60/encoder.pt
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 4
+  augment:
+    random_resized_crop: [0.7, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.2
+    contrast: 0.2
+
+model:
+  name: vit
+  patch_size: 16
+  dim: 192
+  depth: 12
+  heads: 3
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  epochs: 100
+  lr: 0.0005
+  weight_decay: 0.05
+  warmup_epochs: 10

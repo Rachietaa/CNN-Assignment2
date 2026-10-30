@@ -1,0 +1,37 @@
+# Experiment 8f — MAE with 60% masking instead of 75% (encoder sees 25 of 64 patches instead of 16).
+# Everything else identical to configs/mae_vit.yaml.
+name: mae_vit_m60
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:               # MAE uses only crop + flip; the masking provides the difficulty
+    crop_scale: [0.2, 1.0]
+    hflip: 0.5
+
+model:
+  name: vit
+  patch_size: 16
+  dim: 192
+  depth: 12
+  heads: 3
+  dec_dim: 128
+  dec_depth: 4
+  dec_heads: 4
+
+ssl:
+  method: mae
+  mask_ratio: 0.60
+  norm_pix: true             # reconstruct per-patch normalized pixels (structure, not brightness)
+
+train:
+  batch_size: 256
+  epochs: 800
+  lr: 0.00015                # MAE: 1.5e-4 × batch / 256
+  weight_decay: 0.05
+  betas: [0.9, 0.95]
+  warmup_epochs: 40
+  knn_every: 50
+  save_every: 50
