@@ -34,6 +34,8 @@ All numbers are validation accuracy (480 images, fixed seed-0 split, same as Ass
 | 8a | Supervised ViT-Tiny | `configs/sup_vit.yaml` | ViT-Tiny (5.4M params, 16px patches) instead of ResNet-18; same data, augmentation, epochs | 65.0% | 14 pts below the supervised ResNet (79.2 ± 1.8). Underfits rather than overfits: only 85.5% train accuracy after 100 epochs (ResNet: 100%). Without convolutions the ViT must learn locality from 1,920 images. |
 | 8b | MAE pretraining (no labels) | `configs/mae_vit.yaml` | ViT-Tiny, 75% of patches hidden, reconstruct their pixels, 800 epochs | kNN 44.4% | Reconstruction loss 1.04 → 0.79; kNN rises 27% → ~44% by epoch 300, then flat. MAE features are poor for nearest-neighbour lookup (ResNet SimCLR: 74%). 20 min. |
 | 8c | MAE + fine-tune | `configs/ft_mae_vit.yaml` | MAE encoder fine-tuned, recipe identical to 8a | 70.0% | **+5.0 over supervised ViT** (65.0), larger than SimCLR's +2.9 for the ResNet, but the ViT stays far below the ResNet (82.1). Train acc 92% vs 85.5%: MAE makes the ViT easier to fit. Single seed. |
+| 7a | SimCLR fine-tune, encoder LR 1e-4 | `configs/ft_simclr_enclr.yaml` | Pretrained encoder LR 1e-4, new layer 1e-3 (2b: 1e-3 for both) | 82.3% | Reaches its best at epoch 16 (79% by epoch 10 vs ~65% for 2b), then memorizes and declines (last-10 mean 79.8%, val loss 0.64 → 0.79). Faster, not higher. |
+| 7b | 7a + label smoothing + Mixup/CutMix | `configs/ft_simclr_enclr_mix.yaml` | + label smoothing 0.1, Mixup (α 0.2) / CutMix (α 1.0) on 50% of batches | **84.2%** | Best single run so far (+2.1 over 2b's 3-seed mean). No late decline: last-10 mean 83.4%, final val loss 0.71. Regularization stops the memorization that capped 7a. Single seed. |
 
 ---
 
@@ -416,3 +418,27 @@ thing anywhere in the image; a ViT has to learn both from the data, and 1,920 im
   recipe): with a ViT, the problem was under-fitting, and pretraining helps the optimization itself.
 - The two backbones are paired with different SSL methods (SimCLR for the CNN, MAE for the ViT), so this
   compares "best-suited SSL per backbone", not one method across backbones.
+
+
+---
+
+## Experiment 7 — Best recipe (fine-tuning the SimCLR encoder)
+
+Two candidates, each changing one thing, both starting from the same SimCLR encoder as Exp 2b.
+
+| Run | Change | Best val | Epoch of best | Last-10 mean | Min / final val loss | Val at epoch 10 |
+|---|---|---:|---:|---:|---|---:|
+| 2b (3 seeds) | — (LR 1e-3 everywhere) | 82.1 ± 1.3 | 64–88 | 81.3 ± 1.2 | 0.81 / 0.85 | ~65% |
+| 7a | encoder LR 1e-4, new layer 1e-3 | 82.3% | 16 | 79.8% | 0.64 / 0.79 | 79.0% |
+| 7b | 7a + label smoothing 0.1 + Mixup/CutMix | **84.2%** | 91 | **83.4%** | 0.66 / 0.71 | 80.2% |
+
+**Interpretation.**
+- **A lower encoder learning rate preserves the SSL features** — 7a reaches 79% in 10 epochs (2b: ~65%):
+  with LR 1e-3 the first updates, driven by the randomly initialized classification layer, partly overwrite
+  what SimCLR learned. But on its own it only makes training *faster*: after epoch 16 the model memorizes
+  the training set and validation accuracy falls (82.3 → ~78%).
+- **Adding regularization turns the faster start into a higher result.** With label smoothing and
+  Mixup/CutMix the model cannot simply memorize (approx. train accuracy ~83% on mixed batches) and keeps
+  improving until epoch 91: 84.2% best, 83.4% over the last 10 epochs, the best of all runs.
+- The two changes are complementary: the low encoder LR keeps the pretrained features, the regularizers
+  prevent the labels from being memorized on top of them.
