@@ -19,7 +19,7 @@ def pct(x):
 
 
 def main():
-    rows = []
+    rows, raw = [], {}
     for run in sorted(p for p in Path('runs').iterdir() if p.is_dir()):
         summary = load(run / 'summary.json')
         if summary is None:
@@ -29,6 +29,7 @@ def main():
             rows.append((run.name, f"kNN {pct(summary['final_knn_acc'])}", '—', '—',
                          f"{summary['train_seconds'] / 60:.0f}", '—'))
         else:
+            raw[run.name] = 100 * summary['best_val_acc']
             rows.append((run.name, pct(summary['best_val_acc']), pct(summary.get('final_train_acc')),
                          str(summary['best_epoch']), f"{summary['train_seconds'] / 60:.0f}",
                          pct(test['acc']) if test else '—'))
@@ -39,12 +40,10 @@ def main():
         print('  '.join(str(c).ljust(w) for c, w in zip(r, widths)))
 
     # Seed groups: base run + its _s<k> repeats.
+    # Averages use the unrounded accuracies, so they match the numbers quoted in the write-up.
     groups = {}
-    for name, val, *_ in rows:
-        if val.startswith('kNN'):
-            continue
-        base = re.sub(r'_s\d+$', '', name)
-        groups.setdefault(base, []).append(float(val))
+    for name in raw:
+        groups.setdefault(re.sub(r'_s\d+$', '', name), []).append(raw[name])
     print('\nSeed repeats (mean ± std of best val accuracy):')
     for base, vals in groups.items():
         if len(vals) > 1:
