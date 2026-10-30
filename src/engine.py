@@ -95,7 +95,7 @@ def train_classifier(model, loaders, optimizer, scheduler, epochs, device, label
             best_state = copy.deepcopy(model.state_dict())
 
         print(f'Epoch {epoch:03d}/{epochs} | train loss {loss_sum / seen:.4f} acc {correct / seen:.4f} | '
-              f'val loss {val["loss"]:.4f} acc {val["acc"]:.4f} | {time.time() - start:.0f}s')
+              f'val loss {val["loss"]:.4f} acc {val["acc"]:.4f} | {time.time() - start:.0f}s', flush=True)
 
     model.load_state_dict(best_state)
     print(f'Best validation accuracy: {best_val_acc:.4f} (epoch {best_epoch})')
