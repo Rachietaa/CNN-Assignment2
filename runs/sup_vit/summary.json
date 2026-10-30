@@ -1,0 +1,10 @@
+{
+  "name": "sup_vit",
+  "best_val_acc": 0.65,
+  "best_epoch": 81,
+  "final_train_acc": 0.8552083333333333,
+  "params": 5391184,
+  "train_seconds": 328.7,
+  "device": "mps",
+  "torch": "2.14.1"
+}
