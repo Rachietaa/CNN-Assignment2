@@ -1,0 +1,107 @@
+===== 19:38:36 START: DINO second attempt =====
+Device: mps | method: dino
+SSL images: 1920 | batch 256 | 7 steps/epoch | 2 global + 4 local views
+Epoch 001/500 | SSL loss 6.7153 | H(target) 3.33 H(mean) 6.12 | 15s
+Epoch 002/500 | SSL loss 6.5748 | H(target) 3.46 H(mean) 6.28 | 28s
+Epoch 003/500 | SSL loss 6.1972 | H(target) 3.28 H(mean) 6.00 | 40s
+Epoch 004/500 | SSL loss 5.6585 | H(target) 3.02 H(mean) 5.57 | 53s
+Epoch 005/500 | SSL loss 5.2545 | H(target) 2.86 H(mean) 5.26 | 65s
+Epoch 006/500 | SSL loss 4.9325 | H(target) 2.76 H(mean) 4.99 | 78s
+Epoch 007/500 | SSL loss 4.7080 | H(target) 2.71 H(mean) 4.81 | 91s
+Epoch 008/500 | SSL loss 4.6094 | H(target) 2.73 H(mean) 4.74 | 103s
+Epoch 009/500 | SSL loss 4.5172 | H(target) 2.76 H(mean) 4.68 | 116s
+Epoch 010/500 | SSL loss 4.4378 | H(target) 2.80 H(mean) 4.64 | 129s
+Epoch 011/500 | SSL loss 4.3998 | H(target) 2.82 H(mean) 4.62 | 142s
+Epoch 012/500 | SSL loss 4.4080 | H(target) 2.88 H(mean) 4.64 | 154s
+Epoch 013/500 | SSL loss 4.4434 | H(target) 2.96 H(mean) 4.69 | 167s
+Epoch 014/500 | SSL loss 4.4646 | H(target) 3.02 H(mean) 4.73 | 180s
+Epoch 015/500 | SSL loss 4.4296 | H(target) 3.02 H(mean) 4.71 | 193s
+Epoch 016/500 | SSL loss 4.4570 | H(target) 3.05 H(mean) 4.74 | 206s
+Epoch 017/500 | SSL loss 4.4346 | H(target) 3.06 H(mean) 4.77 | 219s
+Epoch 018/500 | SSL loss 4.3903 | H(target) 3.00 H(mean) 4.74 | 232s
+Epoch 019/500 | SSL loss 4.3433 | H(target) 2.94 H(mean) 4.72 | 245s
+Epoch 020/500 | SSL loss 4.3041 | H(target) 2.88 H(mean) 4.69 | 258s
+Epoch 021/500 | SSL loss 4.2651 | H(target) 2.82 H(mean) 4.69 | 271s
+Epoch 022/500 | SSL loss 4.2126 | H(target) 2.76 H(mean) 4.65 | 284s
+Epoch 023/500 | SSL loss 4.1660 | H(target) 2.67 H(mean) 4.62 | 297s
+Epoch 024/500 | SSL loss 4.1064 | H(target) 2.59 H(mean) 4.59 | 310s
+Epoch 025/500 | SSL loss 4.0596 | H(target) 2.54 H(mean) 4.56 | kNN val acc 0.3812 | 327s
+Epoch 026/500 | SSL loss 3.9767 | H(target) 2.41 H(mean) 4.50 | 340s
+Epoch 027/500 | SSL loss 3.9026 | H(target) 2.32 H(mean) 4.43 | 353s
+Epoch 028/500 | SSL loss 3.8424 | H(target) 2.24 H(mean) 4.38 | 365s
+Epoch 029/500 | SSL loss 3.7799 | H(target) 2.15 H(mean) 4.33 | 378s
+Epoch 030/500 | SSL loss 3.6979 | H(target) 2.06 H(mean) 4.28 | 391s
+Epoch 031/500 | SSL loss 3.6862 | H(target) 2.02 H(mean) 4.26 | 404s
+Epoch 032/500 | SSL loss 3.6088 | H(target) 1.95 H(mean) 4.23 | 418s
+Epoch 033/500 | SSL loss 3.5718 | H(target) 1.88 H(mean) 4.20 | 431s
+Epoch 034/500 | SSL loss 3.5615 | H(target) 1.84 H(mean) 4.20 | 444s
+Epoch 035/500 | SSL loss 3.5332 | H(target) 1.81 H(mean) 4.18 | 457s
+Epoch 036/500 | SSL loss 3.5072 | H(target) 1.77 H(mean) 4.17 | 470s
+Epoch 037/500 | SSL loss 3.4472 | H(target) 1.71 H(mean) 4.14 | 483s
+Epoch 038/500 | SSL loss 3.4475 | H(target) 1.68 H(mean) 4.13 | 497s
+Epoch 039/500 | SSL loss 3.4250 | H(target) 1.65 H(mean) 4.12 | 510s
+Epoch 040/500 | SSL loss 3.4319 | H(target) 1.63 H(mean) 4.12 | 523s
+Epoch 041/500 | SSL loss 3.3663 | H(target) 1.59 H(mean) 4.11 | 536s
+Epoch 042/500 | SSL loss 3.3710 | H(target) 1.57 H(mean) 4.11 | 549s
+Epoch 043/500 | SSL loss 3.3801 | H(target) 1.55 H(mean) 4.10 | 563s
+Epoch 044/500 | SSL loss 3.3501 | H(target) 1.53 H(mean) 4.11 | 576s
+Epoch 045/500 | SSL loss 3.3573 | H(target) 1.53 H(mean) 4.12 | 589s
+Epoch 046/500 | SSL loss 3.3856 | H(target) 1.53 H(mean) 4.14 | 602s
+Epoch 047/500 | SSL loss 3.4148 | H(target) 1.53 H(mean) 4.17 | 615s
+Epoch 048/500 | SSL loss 3.4414 | H(target) 1.53 H(mean) 4.21 | 628s
+Epoch 049/500 | SSL loss 3.5092 | H(target) 1.58 H(mean) 4.25 | 642s
+Epoch 050/500 | SSL loss 3.4964 | H(target) 1.54 H(mean) 4.25 | kNN val acc 0.4229 | 656s
+Epoch 051/500 | SSL loss 3.4710 | H(target) 1.53 H(mean) 4.22 | 670s
+Epoch 052/500 | SSL loss 3.4771 | H(target) 1.56 H(mean) 4.23 | 683s
+Epoch 053/500 | SSL loss 3.4191 | H(target) 1.51 H(mean) 4.17 | 696s
+Epoch 054/500 | SSL loss 3.4194 | H(target) 1.50 H(mean) 4.16 | 709s
+Epoch 055/500 | SSL loss 3.3970 | H(target) 1.48 H(mean) 4.14 | 722s
+Epoch 056/500 | SSL loss 3.4191 | H(target) 1.48 H(mean) 4.14 | 735s
+Epoch 057/500 | SSL loss 3.3982 | H(target) 1.46 H(mean) 4.12 | 748s
+Epoch 058/500 | SSL loss 3.4305 | H(target) 1.49 H(mean) 4.16 | 761s
+Epoch 059/500 | SSL loss 3.4140 | H(target) 1.48 H(mean) 4.15 | 774s
+Epoch 060/500 | SSL loss 3.4327 | H(target) 1.50 H(mean) 4.17 | 787s
+Epoch 061/500 | SSL loss 3.4354 | H(target) 1.49 H(mean) 4.19 | 800s
+Epoch 062/500 | SSL loss 3.4892 | H(target) 1.52 H(mean) 4.22 | 812s
+Epoch 063/500 | SSL loss 3.4928 | H(target) 1.53 H(mean) 4.22 | 825s
+Epoch 064/500 | SSL loss 3.5338 | H(target) 1.55 H(mean) 4.25 | 837s
+Epoch 065/500 | SSL loss 3.5346 | H(target) 1.54 H(mean) 4.24 | 850s
+Epoch 066/500 | SSL loss 3.5246 | H(target) 1.55 H(mean) 4.24 | 863s
+Epoch 067/500 | SSL loss 3.5241 | H(target) 1.55 H(mean) 4.25 | 876s
+Epoch 068/500 | SSL loss 3.5347 | H(target) 1.57 H(mean) 4.26 | 889s
+Epoch 069/500 | SSL loss 3.5053 | H(target) 1.55 H(mean) 4.25 | 901s
+Epoch 070/500 | SSL loss 3.5006 | H(target) 1.53 H(mean) 4.23 | 914s
+Epoch 071/500 | SSL loss 3.4757 | H(target) 1.55 H(mean) 4.20 | 927s
+Epoch 072/500 | SSL loss 3.4999 | H(target) 1.59 H(mean) 4.20 | 939s
+Epoch 073/500 | SSL loss 3.4764 | H(target) 1.56 H(mean) 4.19 | 952s
+Epoch 074/500 | SSL loss 3.4648 | H(target) 1.59 H(mean) 4.19 | 964s
+Epoch 075/500 | SSL loss 3.4891 | H(target) 1.60 H(mean) 4.18 | kNN val acc 0.4146 | 978s
+Epoch 076/500 | SSL loss 3.5203 | H(target) 1.64 H(mean) 4.22 | 991s
+Epoch 077/500 | SSL loss 3.5201 | H(target) 1.66 H(mean) 4.24 | 1003s
+Epoch 078/500 | SSL loss 3.5949 | H(target) 1.69 H(mean) 4.30 | 1016s
+Epoch 079/500 | SSL loss 3.6483 | H(target) 1.73 H(mean) 4.35 | 1028s
+Epoch 080/500 | SSL loss 3.6811 | H(target) 1.73 H(mean) 4.38 | 1041s
+Epoch 081/500 | SSL loss 3.6904 | H(target) 1.76 H(mean) 4.40 | 1053s
+Epoch 082/500 | SSL loss 3.6951 | H(target) 1.76 H(mean) 4.40 | 1065s
+Epoch 083/500 | SSL loss 3.7090 | H(target) 1.77 H(mean) 4.40 | 1078s
+Epoch 084/500 | SSL loss 3.7255 | H(target) 1.81 H(mean) 4.42 | 1090s
+Epoch 085/500 | SSL loss 3.7675 | H(target) 1.85 H(mean) 4.44 | 1103s
+Epoch 086/500 | SSL loss 3.7456 | H(target) 1.87 H(mean) 4.43 | 1115s
+Epoch 087/500 | SSL loss 3.7435 | H(target) 1.88 H(mean) 4.42 | 1128s
+Epoch 088/500 | SSL loss 3.7763 | H(target) 1.92 H(mean) 4.44 | 1140s
+Epoch 089/500 | SSL loss 3.7702 | H(target) 1.93 H(mean) 4.43 | 1153s
+Epoch 090/500 | SSL loss 3.7642 | H(target) 1.92 H(mean) 4.43 | 1165s
+Epoch 091/500 | SSL loss 3.8470 | H(target) 2.00 H(mean) 4.51 | 1178s
+Epoch 092/500 | SSL loss 3.9197 | H(target) 2.04 H(mean) 4.57 | 1190s
+Epoch 093/500 | SSL loss 3.9549 | H(target) 2.06 H(mean) 4.60 | 1202s
+Epoch 094/500 | SSL loss 3.9592 | H(target) 2.04 H(mean) 4.59 | 1215s
+Epoch 095/500 | SSL loss 3.9079 | H(target) 2.02 H(mean) 4.55 | 1227s
+Epoch 096/500 | SSL loss 3.8742 | H(target) 1.98 H(mean) 4.51 | 1240s
+Epoch 097/500 | SSL loss 3.8575 | H(target) 1.98 H(mean) 4.46 | 1252s
+Epoch 098/500 | SSL loss 3.8257 | H(target) 1.99 H(mean) 4.44 | 1265s
+Epoch 099/500 | SSL loss 3.8391 | H(target) 1.99 H(mean) 4.45 | 1277s
+Epoch 100/500 | SSL loss 3.8355 | H(target) 2.00 H(mean) 4.46 | kNN val acc 0.3917 | 1291s
+Epoch 101/500 | SSL loss 3.8708 | H(target) 2.04 H(mean) 4.50 | 1304s
+===== 20:00:31 DINO DONE =====
+/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/resource_tracker.py:475: UserWarning: resource_tracker: There appear to be 60 leaked semaphore objects to clean up at shutdown: {'/mp-b79a6esw', '/mp-q3h97f21', '/mp-mkpcikyj', '/mp-4s3cffj9', '/mp-mzizbjou', '/mp-mg4cieeb', '/mp-6_p64m09', '/mp-gex54c0q', '/mp-olc8ukzq', '/mp-nszuo9co', '/mp-40w0cgjp', '/mp-_g2e0uz7', '/mp-gpb1dp4y', '/mp-5a3q5k1y', '/mp-c5asn_eq', '/mp-4tdru8u7', '/mp-oe6aj8_e', '/mp-g2d0fyvy', '/mp-w35ibvkm', '/mp-mc71ipxy', '/mp-va5xcmk6', '/mp-z225ocwq', '/mp-qjw5q4rt', '/mp-awiw21_e', '/mp-rd88mj19', '/mp-nldijvgw', '/mp-j0bupo0f', '/mp-o50720vz', '/mp-1yd6d7xj', '/mp-7urbk8w5', '/mp-6uop6uig', '/mp-nuku4jxx', '/mp-4gwtipwp', '/mp-ldrrtehk', '/mp-sqob0gfd', '/mp-lx0thb97', '/mp-j3sp6bnw', '/mp-n_7q1315', '/mp-mw3tpsr_', '/mp-onrsd3i0', '/mp-gw5i2i5f', '/mp-l4tq740s', '/mp-ty0u9_kv', '/mp-sdxw24w8', '/mp-4qo5vmkr', '/mp-tqunwmgq', '/mp-sqzu1ojr', '/mp-tahsn7bf', '/mp-96m5ttei', '/mp-08t73hvp', '/mp-hjhk66y0', '/mp-jx90fjm_', '/mp-f_ui7hwc', '/mp-5ka653ni', '/mp-lxq0p0hn', '/mp-aik8qr0l', '/mp-dyejq325', '/mp-xe3q6tvt', '/mp-bqz7d8zx', '/mp-frz6k6ob'}
+  warnings.warn(
