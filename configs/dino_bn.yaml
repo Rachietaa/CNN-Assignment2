@@ -1,0 +1,51 @@
+# Experiment 4 (second attempt) — DINO-style self-distillation with two changes against the uniform
+# collapse of configs/dino.yaml (DECISIONS.md D8b): BatchNorm in the head and a sharper teacher (T 0.02).
+# Everything else identical to configs/dino.yaml.
+name: dino_bn
+seed: 0
+
+data:
+  root: data
+  img_size: 128
+  num_workers: 8
+  ssl_augment:               # global views: identical to SimCLR's views
+    crop_scale: [0.2, 1.0]
+    hflip: 0.5
+    rotation: 10
+    brightness: 0.4
+    contrast: 0.4
+    jitter_p: 0.8
+    blur_p: 0.5
+    blur_sigma: [0.1, 1.15]
+
+model:
+  name: resnet18
+  head_hidden: 1024
+  head_bottleneck: 256
+  head_out: 1024             # number of prototypes K (DINO uses 65,536 for ImageNet; 2,400 images need far fewer)
+  head_bn: true              # BatchNorm after the hidden layers of the head (DINO's use_bn_in_head)
+
+ssl:
+  method: dino
+  student_temp: 0.1
+  teacher_temp: 0.02         # sharpening (0.04 in the collapsed first attempt)
+  center_momentum: 0.9       # centering
+  teacher_momentum: 0.99     # EMA start value, cosine -> 1.0 (only ~3,500 steps in total)
+  local_crops:
+    n: 4
+    size: 64
+    scale: [0.05, 0.2]
+    blur_sigma: [0.1, 0.6]   # same relative blur as the 128px globals
+  collapse_guard:            # stop if the teacher targets are still near-uniform at epoch 25
+    check_epoch: 25
+    max_entropy_frac: 0.95   # of log(K) = 6.93 -> limit 6.58 (the collapsed run sat at 6.81)
+
+train:
+  batch_size: 256
+  epochs: 500
+  lr: 0.0005
+  weight_decay: 0.04
+  warmup_epochs: 10
+  clip_grad: 3.0
+  knn_every: 25
+  save_every: 50

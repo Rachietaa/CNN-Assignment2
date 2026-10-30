@@ -1,10 +1,10 @@
-# Experiment 4a — Linear probe: frozen DINO (teacher) encoder + new linear layer (8,208 trainable weights).
+# Experiment 4a — Linear probe: frozen DINO (teacher) encoder, second attempt (dino_bn) + new linear layer (8,208 trainable weights).
 # Measures how linearly separable the self-supervised features are, without changing them.
 name: probe_dino
 seed: 0
 
 init:
-  encoder: runs/dino/encoder.pt
+  encoder: runs/dino_bn/encoder.pt
 
 data:
   root: data

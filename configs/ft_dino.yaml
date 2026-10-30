@@ -1,11 +1,11 @@
-# Experiment 4b — DINO (teacher) encoder, fully fine-tuned with labels.
+# Experiment 4b — DINO (teacher) encoder, second attempt (dino_bn), fully fine-tuned with labels.
 # Identical to the supervised baseline (configs/sup_resnet18.yaml) except the starting weights,
 # so any difference is caused by the SSL pretraining.
 name: ft_dino
 seed: 0
 
 init:
-  encoder: runs/dino/encoder.pt
+  encoder: runs/dino_bn/encoder.pt
 
 data:
   root: data
